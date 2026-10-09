@@ -19,8 +19,6 @@ Recommend a layered REST application with separate OCR, indexing and GenAI worke
 
 ## 2. Course requirements and evidence
 
-Reviewed the project PDF including its diagram, all populated grading workbook cells/formulas, the saved Moodle course text and links, and DocFlow's README/license. Inventoried the Moodle assets and inspected its architecture image. Also reviewed the subsequently supplied `welcome.pdf`, including the three-layer diagram, the saved use-case suggestions HTML, and the submission-page text pasted by the user. The remaining saved assets are Moodle scripts, styles, icons and branding, not downloaded lecture handouts. The `~$...xlsx` file is an Excel lock file. Git internals are not course material.
-
 | Course requirement | Design response |
 | --- | --- |
 | JDK LTS >=25, Spring Boot >=3.5/4 | Java 25 LTS and Spring Boot 4.1.1 |
@@ -43,20 +41,16 @@ Reviewed the project PDF including its diagram, all populated grading workbook c
 
 The rubric assigns 20 points each to functionality, non-functional requirements, architecture, development workflow and code-review knowledge. Containerized deployment alone is 10 points. Document decisions, diagrams, testing, lessons learned and tracked work. Every member should understand the complete system.
 
-### Visual PDF review and grading evidence
+### Requirement details and assumptions
 
-All 16 pages of `semester-project.pdf` were rendered and visually inspected, including the architecture diagram. References below distinguish PDF page numbers from printed slide numbers.
+- The course architecture diagram includes a mobile client and a Docker Compose monorepo; its omission of Kibana/Logstash does not override the later sprint instructions.
+- Sprint 1 includes the additional use case and extra entities. Implement its domain/API/persistence foundation then; the team confirms live LLM classification comes later, in Sprint 5.
+- Sprint 4 requires MinIO, OCR and ELK in containers. ELK means Elasticsearch, Logstash and Kibana; all three run locally and in scheduled cloud sessions. The indexing worker is explicitly separate even though the course diagram associates indexing with GenAI.
+- Sprint 5 requires a smartphone app generated with AI coding tools, with "smartphone app is available and working" as a must-have. No PWA/native distinction is given. **Team assumption: an installable PWA satisfies this requirement.** This is not a claim of lecturer confirmation.
+- Sprint 6 requires a separate daily scheduled XML importer with configurable schedule/folders/patterns and archiving. No continuous cloud-uptime requirement is stated, and the team explicitly excludes it.
+- The grading matrix scores the web frontend, core use cases and the additional use case; it has no dedicated mobile/PWA/native score. This does not remove the Sprint 5 must-have.
 
-- **PDF page 3 / printed slide 1:** architecture diagram includes a mobile client and Docker Compose monorepo. Its omission of Kibana/Logstash does not override the later sprint instructions.
-- **PDF page 8 / printed slide 5:** Sprint 1 includes the additional use case and extra entities. Implement its domain/API/persistence foundation then; the team confirms live LLM classification comes later, in Sprint 5.
-- **PDF page 11 / printed slide 8:** Sprint 4 item 7 explicitly requires MinIO, OCR and ELK in containers. Treat ELK as Elasticsearch, Logstash and Kibana. All three will run locally and in scheduled cloud sessions, as confirmed by the team. The indexing worker is explicitly separate even though the earlier diagram associates indexing with GenAI.
-- **PDF page 12 / printed slide 9:** Sprint 5 item 7 says "Generate a smartphone app using AI coding tools." Its must-have checklist includes "smartphone app is available and working". No PWA/native distinction is given. **Team assumption: an installable PWA satisfies this requirement.** This is not a claim of lecturer confirmation.
-- **PDF page 13 / printed slide 10:** separate daily scheduled XML importer with configurable schedule/folders/patterns and archiving. Demonstrate scheduling while the stack runs; the slides do not state a continuous cloud-uptime requirement, and the team explicitly excludes it.
-- **RatingMatrix sheet, row 10:** Web-Frontend, 5 points, Mid/Final, functional/usable/integrated web frontend. **Row 8:** Core Use Cases, 5 points. There is no mobile/smartphone/PWA/native entry or dedicated mobile score in the workbook. This does not remove the Sprint 5 must-have. **Row 11:** additional Use Case, 5 points, relevant for Final.
-
-[Semester project PDF](../../semester-project.pdf), [grading matrix](../../BIF5-SWEN3_RatingMatrix.xlsx). These course files live outside the repository; the references work in the supplied workspace. [Elastic's stack description](https://www.elastic.co/elastic-stack) identifies the ELK components.
-
-The supplied use-case suggestions explicitly endorse LLM classification with a Document/DocumentType many-to-many relationship. MinIO source builds are accepted by the team. The welcome slide says two engineers, whereas the course page mentions 2-3/three; use the confirmed three-person team and actual Moodle group. The course page also contains a stale Sprint 7 reference. PDF grading weights and the matrix's illustrative Moodle point totals differ. Submission instructions are supplied; actual due dates and separate review-specific rules remain to record. Review dates shown are 26 November 2026 and 19 January 2027, not verified submission deadlines.
+The course's use-case suggestions endorse LLM classification with a Document/DocumentType many-to-many relationship. The confirmed team is three students (some course material mentions two).
 
 ## 3. Component architecture
 
@@ -525,22 +519,15 @@ These are starting responsibilities, not permanent silos. Student C's workload g
 | 5 | GenAI summary/classification, validated results, retries, review UI and installable PWA tested on a phone |
 | 6 | End-to-end tests, scheduled XML import, recovery checks, deployment smoke test, final docs/ZIP/review preparation |
 
-## 12. Moodle material to download
+## 12. Moodle material references
 
-Received: project brief, grading matrix, course export, use-case suggestions HTML, welcome PDF, and the identical submission-page instructions pasted by the team. No need to download those again. Add any further downloads outside DocFlow. Public vendor documentation need not be downloaded; a PDF suffices when it duplicates SCORM.
-
-### Highest priority
-
-| Material | Reason |
-| --- | --- |
-| Actual due dates and any unique mid-term/final review attachments | Only if additional to the identical submission text already supplied |
-| Relevant [announcements](https://moodle.technikum-wien.at/mod/forum/view.php?id=2435230) and [Q&A](https://moodle.technikum-wien.at/mod/hotquestion/view.php?id=2435232) | Corrections not present in the course export |
+Course materials worth consulting during implementation. Store any downloads outside the DocFlow repository.
 
 ### Architecture and implementation references
 
 | Material | When useful |
 | --- | --- |
-| [Layered design](https://moodle.technikum-wien.at/mod/resource/view.php?id=2435288), [Java/JPA](https://moodle.technikum-wien.at/mod/resource/view.php?id=2435292), [MapStruct](https://moodle.technikum-wien.at/mod/resource/view.php?id=2435305), [business layer](https://moodle.technikum-wien.at/mod/resource/view.php?id=2435315) | Now: align the design with teaching examples |
+| [Layered design](https://moodle.technikum-wien.at/mod/resource/view.php?id=2435288), [Java/JPA](https://moodle.technikum-wien.at/mod/resource/view.php?id=2435292), [MapStruct](https://moodle.technikum-wien.at/mod/resource/view.php?id=2435305), [business layer](https://moodle.technikum-wien.at/mod/resource/view.php?id=2435315) | Align the design with teaching examples |
 | [REST/OpenAPI](https://moodle.technikum-wien.at/mod/resource/view.php?id=2435263), [UI integration](https://moodle.technikum-wien.at/mod/resource/view.php?id=2435339), [OAuth2/JWT](https://moodle.technikum-wien.at/mod/resource/view.php?id=2435341) | API/authentication planning |
 | [Distributed transactions](https://moodle.technikum-wien.at/mod/resource/view.php?id=2435363), [event-driven architecture](https://moodle.technikum-wien.at/mod/resource/view.php?id=2435370), [message brokers](https://moodle.technikum-wien.at/mod/resource/view.php?id=2435374) | Before Sprint 3 |
 | [MinIO](https://moodle.technikum-wien.at/mod/resource/view.php?id=2435385), [OCR](https://moodle.technikum-wien.at/mod/resource/view.php?id=2435395), [Elasticsearch](https://moodle.technikum-wien.at/mod/resource/view.php?id=2435409), [Elasticsearch/Kibana lesson](https://moodle.technikum-wien.at/mod/lesson/view.php?id=2435412) | Implementation examples for storage, OCR, search and ELK |
@@ -565,4 +552,4 @@ No further architecture choice is required from the team now. The defaults have 
 | ELK | Elasticsearch, Logstash and Kibana as containers both locally and in cloud sessions |
 | Batch | Configurable daily scheduler while running; controlled demonstration trigger; no always-on cloud requirement assumed |
 
-Remaining implementation checks: measure the complete hosted stack including ELK, verify account limits and shutdown controls, pin container digests/lockfiles, test version compatibility, validate the PWA on a real phone and record actual Moodle deadlines. These are validation tasks, not requests to revisit settled decisions. No application or cloud resources have been created yet.
+Remaining implementation checks: measure the complete hosted stack including ELK, verify account limits and shutdown controls, pin container digests/lockfiles, test version compatibility and validate the PWA on a real phone. These are validation tasks, not requests to revisit settled decisions. No application or cloud resources have been created yet.
