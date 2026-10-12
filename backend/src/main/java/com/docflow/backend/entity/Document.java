@@ -52,5 +52,13 @@ public class Document {
         return createdAt;
     }
 
+    public void updateMetaDate(String filename, String contentType, String description) {
+        this.filename = filename;
+        this.contentType = contentType;
+        this.description = description;
+    }
+
+
+
 
 }
