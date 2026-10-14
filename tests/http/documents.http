@@ -1,0 +1,32 @@
+@baseUrl = http://localhost:8080
+@documentId = 1
+
+### Create metadata (setup operation; no PDF bytes are uploaded)
+POST {{baseUrl}}/api/v1/documents
+Content-Type: application/json
+
+{"filename":"invoice.pdf","contentType":"application/pdf","description":"Example"}
+
+### List metadata
+GET {{baseUrl}}/api/v1/documents
+
+### Get metadata (replace documentId with the returned ID)
+GET {{baseUrl}}/api/v1/documents/{{documentId}}
+
+### Replace editable metadata; null clears description
+PUT {{baseUrl}}/api/v1/documents/{{documentId}}/metadata
+Content-Type: application/json
+
+{"filename":"renamed.pdf","contentType":"application/pdf","description":null}
+
+### Validation problem
+PUT {{baseUrl}}/api/v1/documents/{{documentId}}/metadata
+Content-Type: application/json
+
+{"filename":"","contentType":"application/pdf"}
+
+### Delete metadata
+DELETE {{baseUrl}}/api/v1/documents/{{documentId}}
+
+### Generated OpenAPI
+GET {{baseUrl}}/v3/api-docs

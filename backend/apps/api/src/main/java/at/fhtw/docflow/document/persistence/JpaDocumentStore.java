@@ -1,6 +1,7 @@
 package at.fhtw.docflow.document.persistence;
 
 import at.fhtw.docflow.document.application.DocumentStore;
+import at.fhtw.docflow.document.application.DocumentNotFoundException;
 import at.fhtw.docflow.document.domain.Document;
 import org.springframework.stereotype.Repository;
 import java.util.List;
@@ -23,7 +24,7 @@ public class JpaDocumentStore implements DocumentStore {
             entity = mapper.toNewEntity(document);
         } else {
             entity = repository.findById(document.id())
-                    .orElseThrow(() -> new IllegalStateException("Document no longer exists"));
+                    .orElseThrow(() -> new DocumentNotFoundException(document.id()));
             mapper.updateMetadata(document, entity);
         }
         return mapper.toDomain(repository.saveAndFlush(entity));

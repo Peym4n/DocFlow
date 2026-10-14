@@ -1,11 +1,16 @@
 package at.fhtw.docflow.document.api;
 
+import at.fhtw.docflow.api.ApiExceptionHandler;
 import at.fhtw.docflow.document.domain.Document;
 import at.fhtw.docflow.document.domain.DocumentMetadata;
 import at.fhtw.docflow.document.application.DocumentUseCases;
 import org.mapstruct.factory.Mappers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.http.MediaType;
+import java.time.LocalDateTime;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
@@ -34,6 +39,7 @@ class DocumentControllerTest {
 
         mockMvc = MockMvcBuilders
                 .standaloneSetup(controller)
+                .setControllerAdvice(new ApiExceptionHandler())
                 .setValidator(validator)
                 .build();
     }
@@ -46,8 +52,11 @@ class DocumentControllerTest {
                 .thenReturn(Optional.empty());
 
         // Act & Assert
-        mockMvc.perform(get("/api/documents/999"))
-                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/documents/999"))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.title").value("Not Found"));
 
         verify(documentService).getDocumentById(999L);
     }
@@ -67,7 +76,7 @@ class DocumentControllerTest {
                 .thenReturn(Optional.of(document));
 
         // Act & Assert
-        mockMvc.perform(get("/api/documents/1"))
+        mockMvc.perform(get("/api/v1/documents/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.filename").value("rechnung.pdf"))
                 .andExpect(jsonPath("$.contentType").value("application/pdf"))
@@ -92,7 +101,7 @@ class DocumentControllerTest {
                 .thenReturn(List.of(doc1, doc2));
 
         // Act & Assert
-        mockMvc.perform(get("/api/documents"))
+        mockMvc.perform(get("/api/v1/documents"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].filename").value("rechnung.pdf"))
@@ -105,9 +114,8 @@ class DocumentControllerTest {
     void createDocumentShouldReturn201() throws Exception {
 
         // Arrange
-        Document document = Document.create(new DocumentMetadata(
-                "rechnung.pdf", "application/pdf", "Rechnung"
-        ));
+        Document document = new Document(1L, "rechnung.pdf", "application/pdf", "Rechnung",
+                LocalDateTime.of(2026, 10, 14, 12, 0));
 
         when(documentService.createDocument(any(DocumentMetadata.class)))
                 .thenReturn(document);
@@ -121,10 +129,11 @@ class DocumentControllerTest {
             """;
 
         // Act & Assert
-        mockMvc.perform(post("/api/documents")
+        mockMvc.perform(post("/api/v1/documents")
                         .contentType("application/json")
                         .content(json))
                 .andExpect(status().isCreated())
+                .andExpect(header().string("Location", "/api/v1/documents/1"))
                 .andExpect(jsonPath("$.filename").value("rechnung.pdf"))
                 .andExpect(jsonPath("$.description").value("Rechnung"));
 
@@ -154,7 +163,7 @@ class DocumentControllerTest {
             """;
 
         // Act & Assert
-        mockMvc.perform(put("/api/documents/{id}", id)
+        mockMvc.perform(put("/api/v1/documents/{id}/metadata", id)
                         .contentType("application/json")
                         .content(json))
                 .andExpect(status().isOk())
@@ -184,10 +193,13 @@ class DocumentControllerTest {
             """;
 
         // Act & Assert
-        mockMvc.perform(put("/api/documents/{id}", id)
+        mockMvc.perform(put("/api/v1/documents/{id}/metadata", id)
                         .contentType("application/json")
                         .content(json))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.title").value("Not Found"));
 
         verify(documentService).updateDocument(
                 eq(id), any(DocumentMetadata.class));
@@ -203,7 +215,7 @@ class DocumentControllerTest {
                 .thenReturn(true);
 
         // Act & Assert
-        mockMvc.perform(delete("/api/documents/{id}", id))
+        mockMvc.perform(delete("/api/v1/documents/{id}", id))
                 .andExpect(status().isNoContent());
 
         verify(documentService).deleteDocument(id);
@@ -220,8 +232,11 @@ class DocumentControllerTest {
                 .thenReturn(false);
 
         // Act & Assert
-        mockMvc.perform(delete("/api/documents/{id}", id))
-                .andExpect(status().isNotFound());
+        mockMvc.perform(delete("/api/v1/documents/{id}", id))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.title").value("Not Found"));
 
         verify(documentService).deleteDocument(id);
     }
@@ -240,12 +255,97 @@ class DocumentControllerTest {
             """;
 
         // Act & Assert
-        mockMvc.perform(post("/api/documents")
+        mockMvc.perform(post("/api/v1/documents")
                         .contentType("application/json")
                         .content(json))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.errors.filename").exists());
 
         verify(documentService, never())
                 .createDocument(any(DocumentMetadata.class));
+    }
+
+    @Test
+    void updateDocumentShouldRejectMissingRequiredMetadata() throws Exception {
+        mockMvc.perform(put("/api/v1/documents/1/metadata")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.filename").exists())
+                .andExpect(jsonPath("$.errors.contentType").exists());
+        verifyNoInteractions(documentService);
+    }
+
+    @Test
+    void updateDocumentShouldClearDescriptionAndPreserveResponseIdentity() throws Exception {
+        LocalDateTime createdAt = LocalDateTime.of(2026, 10, 14, 12, 0);
+        DocumentMetadata replacement = new DocumentMetadata("new.pdf", "application/pdf", null);
+        when(documentService.updateDocument(1L, replacement)).thenReturn(Optional.of(
+                new Document(1L, replacement.filename(), replacement.contentType(), null, createdAt)));
+        mockMvc.perform(put("/api/v1/documents/1/metadata")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"filename\":\"new.pdf\",\"contentType\":\"application/pdf\",\"description\":null}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.createdAt").value("2026-10-14T12:00:00"))
+                .andExpect(jsonPath("$.description").doesNotExist());
+        verify(documentService).updateDocument(1L, replacement);
+    }
+
+    @Test
+    void updateDocumentShouldRejectOversizedMetadata() throws Exception {
+        mockMvc.perform(put("/api/v1/documents/1/metadata")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"filename\":\"" + "x".repeat(256) + "\",\"contentType\":\"application/pdf\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.filename").exists());
+        verifyNoInteractions(documentService);
+    }
+
+    @Test
+    void malformedJsonShouldReturnProblemWithoutParserDetails() throws Exception {
+        mockMvc.perform(post("/api/v1/documents")
+                        .contentType(MediaType.APPLICATION_JSON).content("{"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(400));
+        verifyNoInteractions(documentService);
+    }
+
+    @Test
+    void invalidIdShouldReturnBadRequestProblem() throws Exception {
+        mockMvc.perform(get("/api/v1/documents/not-a-number"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+        verifyNoInteractions(documentService);
+    }
+
+    @Test
+    void databaseConflictShouldNotExposeSql() throws Exception {
+        when(documentService.createDocument(any(DocumentMetadata.class)))
+                .thenThrow(new DataIntegrityViolationException("sensitive SQL and file paths"));
+        mockMvc.perform(post("/api/v1/documents")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"filename\":\"invoice.pdf\",\"contentType\":\"application/pdf\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("The operation conflicts with stored data"));
+    }
+
+    @Test
+    void databaseFailureShouldReturnUnavailableProblem() throws Exception {
+        when(documentService.getAllDocuments())
+                .thenThrow(new DataAccessResourceFailureException("sensitive connection details"));
+        mockMvc.perform(get("/api/v1/documents"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.detail").value("Database temporarily unavailable"));
+    }
+
+    @Test
+    void oldMetadataUpdatePathShouldNotAcceptPut() throws Exception {
+        mockMvc.perform(put("/api/v1/documents/1").contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isMethodNotAllowed());
+        verifyNoInteractions(documentService);
     }
 }
