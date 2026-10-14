@@ -1,0 +1,308 @@
+openapi: 3.1.0
+info:
+  title: DocFlow setup API
+  description: "Metadata CRUD scaffold. PDF upload, authentication and classification\
+    \ remain to be implemented."
+  version: v1
+servers:
+- url: /
+tags:
+- name: Documents
+  description: Setup metadata operations; file upload is pending
+paths:
+  /api/v1/documents/{id}/metadata:
+    put:
+      tags:
+      - Documents
+      summary: Replace editable metadata
+      description: filename and contentType are required. Null description clears
+        it. ID and creation time are preserved; unknown fields are rejected.
+      operationId: updateDocument
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentMetadataRequest"
+        required: true
+      responses:
+        "404":
+          description: Document not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "200":
+          description: Updated metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Stored data conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "503":
+          description: Database unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+  /api/v1/documents:
+    get:
+      tags:
+      - Documents
+      summary: List metadata records
+      description: Scaffold returns an unpaginated list.
+      operationId: getAllDocuments
+      responses:
+        "400":
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Stored data conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "503":
+          description: Database unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "200":
+          description: Metadata records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DocumentResponse"
+    post:
+      tags:
+      - Documents
+      summary: Create a metadata record
+      description: "Setup-only JSON operation: does not upload a PDF or start processing."
+      operationId: createDocument
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentRequest"
+        required: true
+      responses:
+        "400":
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Stored data conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "503":
+          description: Database unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "201":
+          description: Metadata created
+          headers:
+            Location:
+              description: Created metadata resource
+              style: simple
+              schema:
+                type: string
+                format: uri-reference
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentResponse"
+  /api/v1/documents/{id}:
+    get:
+      tags:
+      - Documents
+      summary: Get document metadata
+      operationId: getDocumentById
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "404":
+          description: Document not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "200":
+          description: Document metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Stored data conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "503":
+          description: Database unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+    delete:
+      tags:
+      - Documents
+      summary: Delete a metadata record
+      operationId: deleteDocument
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "204":
+          description: Metadata deleted
+        "404":
+          description: Document not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "400":
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Stored data conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "503":
+          description: Database unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+components:
+  schemas:
+    DocumentMetadataRequest:
+      type: object
+      additionalProperties: false
+      description: Complete editable metadata. Required fields must be supplied; null
+        description clears it.
+      properties:
+        filename:
+          type: string
+          maxLength: 255
+          minLength: 0
+        contentType:
+          type: string
+          maxLength: 255
+          minLength: 0
+        description:
+          type:
+          - string
+          - "null"
+          maxLength: 255
+          minLength: 0
+      required:
+      - contentType
+      - filename
+    ProblemDetail:
+      type: object
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+          format: int32
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri
+        errors:
+          type: object
+          additionalProperties:
+            type: string
+          description: Field validation messages; present only for validation failures
+    DocumentResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        filename:
+          type: string
+        contentType:
+          type: string
+        description:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    DocumentRequest:
+      type: object
+      additionalProperties: false
+      description: Setup-only metadata creation
+      properties:
+        filename:
+          type: string
+          maxLength: 255
+          minLength: 0
+        contentType:
+          type: string
+          maxLength: 255
+          minLength: 0
+        description:
+          type:
+          - string
+          - "null"
+          maxLength: 255
+          minLength: 0
+      required:
+      - contentType
+      - filename

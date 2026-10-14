@@ -8,5 +8,6 @@ import org.mapstruct.Mapper;
 @Mapper(config = MappingConfiguration.class)
 public interface DocumentMapper {
     DocumentMetadata toMetadata(DocumentRequest request);
+    DocumentMetadata toMetadata(DocumentMetadataRequest request);
     DocumentResponse toResponse(Document document);
 }
