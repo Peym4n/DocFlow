@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -49,8 +50,8 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "The operation conflicts with stored data");
     }
 
-    @ExceptionHandler(DataAccessException.class)
-    ProblemDetail databaseUnavailable(DataAccessException exception) {
+    @ExceptionHandler({DataAccessException.class, CannotCreateTransactionException.class})
+    ProblemDetail databaseUnavailable(Exception exception) {
         log.error("Database operation failed category={}", exception.getClass().getSimpleName());
         return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, "Database temporarily unavailable");
     }
