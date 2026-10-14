@@ -506,20 +506,20 @@ Keep provider/infrastructure credentials on backend services. Use synthetic demo
 
 ## 10. CI/CD and tests
 
-Use a lightweight GitFlow arrangement for the rubric: feature branches -> PRs to `develop`, release PRs -> `main`, sprint tags. Protect branches with required checks/reviews, keep GitHub Projects current and link issues to PRs.
+Use a lightweight GitFlow arrangement for the rubric: feature branches -> PRs to `dev`, release PRs -> `main`, sprint tags. Protect branches with required checks/reviews, keep GitHub Projects current and link issues to PRs.
 
 ### Submission contract (provided by the team)
 
 - Join a Moodle GROUP before submission; all three students belong to that group.
 - Submit one ZIP containing every required project source using the IDE export function, as instructed.
 - After the deadline, the lecturer builds code from **MAIN at an unspecified time**. The ZIP/tag does not freeze what they will grade: whatever is then on main may be used.
-- Keep unfinished work on feature/develop branches. Merge to main only complete, tested sprint increments. Protect main against direct/force pushes, require one other student's review, and require the always-present build/test gate on the actual merge candidate.
+- Keep unfinished work on feature/dev branches. Merge to main only complete, tested sprint increments. Protect main against direct/force pushes, require one other student's review, and require the always-present build/test gate on the actual merge candidate.
 - Before submission, build a clean main checkout with documented Docker commands, export that same checkout, verify the ZIP includes both Java and React plus infrastructure/fixtures, and record its SHA in submission notes/tag. IDE export alone is not proof of completeness.
-- During the grading window keep main stable; continue next-sprint work on develop. Any later main fix/release must remain complete and buildable and preserve earlier sprint behavior. Do not rely on main being graded immediately after the deadline.
+- During the grading window keep main stable; continue next-sprint work on dev. Any later main fix/release must remain complete and buildable and preserve earlier sprint behavior. Do not rely on main being graded immediately after the deadline.
 - Grading must not require paid cloud access: provide deterministic AI stubs/fixtures for tests, explicit live-AI configuration for demonstrations, and reproducible local infrastructure.
 
 
-GitHub Actions on PRs and pushes to `develop`/`main` should:
+GitHub Actions on PRs and pushes to `dev`/`main` should:
 
 1. Compile/test Java; lint, typecheck, test and build React.
 2. Keep the 80% application line-coverage target as a small margin above the required >70%. Use meaningful tests and narrow generated-code exclusions.

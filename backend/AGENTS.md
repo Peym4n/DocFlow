@@ -126,7 +126,7 @@ Guidelines for implementing the DocFlow Java backend. The authoritative design i
 - Rebuild the whole small stack; no affected-service detection required. Automatic CI checks builds/tests; manual workflows deploy a passing main commit and stop cloud compute afterward. The session owner verifies shutdown.
 - Keep `.env.example` complete and secret-free; group configuration with `@ConfigurationProperties`.
 - Prefer small classes, records for immutable DTOs/contracts and clear service-boundary Optional handling. Avoid unnecessary abstractions and comments that only repeat code.
-- GitFlow: feature PRs to develop, release PRs to main, another teammate reviews; merge complete tested increments only.
+- GitFlow: feature PRs to dev, release PRs to main, another teammate reviews; merge complete tested increments only.
 
 ## Implementation Checklist
 
