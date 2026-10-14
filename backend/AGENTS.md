@@ -112,6 +112,8 @@ Guidelines for implementing the DocFlow Java backend. The authoritative design i
 
 ## Testing
 
+- From `backend/`, run `./mvnw -B -ntp test` for database-free isolated tests and `./mvnw -B -ntp clean verify` for the complete suite, including disposable PostgreSQL Testcontainers integration tests (Docker required) and the enforced 80% application line-coverage gate. Reports are in `apps/api/target/surefire-reports`, `apps/api/target/failsafe-reports` and `apps/api/target/site/jacoco`. On Windows PowerShell use `./mvnw.cmd`.
+
 - Require >70% coverage and target 80% meaningful application line coverage with JaCoCo; keep generated-code exclusions narrow.
 - Test valid/invalid controller and business-component cases, authorization, validation, classification confirmation, custom mappings and XML parsing. Mock I/O, not the business behavior under test.
 - MVC tests verify contracts/statuses/validation. PostgreSQL integration tests verify entity-generated schema, queries, ownership and relationship deletion without removing shared records. No migration tests.
