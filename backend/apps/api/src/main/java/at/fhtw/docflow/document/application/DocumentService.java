@@ -1,52 +1,46 @@
 package at.fhtw.docflow.document.application;
 
-import at.fhtw.docflow.document.persistence.Document;
-import at.fhtw.docflow.document.persistence.DocumentRepository;
+import at.fhtw.docflow.document.domain.Document;
+import at.fhtw.docflow.document.domain.DocumentMetadata;
 import org.springframework.stereotype.Service;
-
 import java.util.List;
 import java.util.Optional;
 
 @Service
-public class DocumentService {
+public class DocumentService implements DocumentUseCases {
+    private final DocumentStore documentStore;
 
-    private final DocumentRepository documentRepository;
-
-    public DocumentService(DocumentRepository documentRepository) {
-        this.documentRepository = documentRepository;
+    public DocumentService(DocumentStore documentStore) {
+        this.documentStore = documentStore;
     }
 
-    public Document createDocument(Document document) {
-        return documentRepository.save(document);
+    @Override
+    public Document createDocument(DocumentMetadata metadata) {
+        return documentStore.save(Document.create(metadata));
     }
 
+    @Override
     public List<Document> getAllDocuments() {
-        return documentRepository.findAll();
+        return documentStore.findAll();
     }
 
+    @Override
     public Optional<Document> getDocumentById(Long id) {
-        return documentRepository.findById(id);
+        return documentStore.findById(id);
     }
 
-    public Optional<Document> updateDocument(Long id, Document updateDocument) {
-        return documentRepository.findById(id)
-                .map(document -> {
-                    document.updateMetaDate(
-                            updateDocument.getFilename(),
-                            updateDocument.getContentType(),
-                            updateDocument.getDescription()
-                    );
-                    return documentRepository.save(document);
-                });
+    @Override
+    public Optional<Document> updateDocument(Long id, DocumentMetadata metadata) {
+        return documentStore.findById(id)
+                .map(document -> documentStore.save(document.withMetadata(metadata)));
     }
 
+    @Override
     public boolean deleteDocument(Long id) {
-        if (!documentRepository.existsById(id)) {
+        if (!documentStore.existsById(id)) {
             return false;
         }
-
-        documentRepository.deleteById(id);
+        documentStore.deleteById(id);
         return true;
     }
 }
-

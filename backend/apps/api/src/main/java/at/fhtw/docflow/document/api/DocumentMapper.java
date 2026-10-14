@@ -1,26 +1,12 @@
 package at.fhtw.docflow.document.api;
 
-import at.fhtw.docflow.document.api.DocumentRequest;
-import at.fhtw.docflow.document.api.DocumentResponse;
-import at.fhtw.docflow.document.persistence.Document;
+import at.fhtw.docflow.configuration.MappingConfiguration;
+import at.fhtw.docflow.document.domain.Document;
+import at.fhtw.docflow.document.domain.DocumentMetadata;
+import org.mapstruct.Mapper;
 
-public class DocumentMapper {
-
-    public static Document toEntity(DocumentRequest request) {
-        return new Document(
-                request.filename(),
-                request.contentType(),
-                request.description()
-        );
-    }
-
-    public static DocumentResponse toResponse(Document document) {
-        return new DocumentResponse(
-                document.getId(),
-                document.getFilename(),
-                document.getContentType(),
-                document.getDescription(),
-                document.getCreatedAt()
-        );
-    }
+@Mapper(config = MappingConfiguration.class)
+public interface DocumentMapper {
+    DocumentMetadata toMetadata(DocumentRequest request);
+    DocumentResponse toResponse(Document document);
 }
