@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.http.MediaType;
+import org.springframework.transaction.CannotCreateTransactionException;
 import java.time.LocalDateTime;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -347,5 +348,15 @@ class DocumentControllerTest {
         mockMvc.perform(put("/api/v1/documents/1").contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isMethodNotAllowed());
         verifyNoInteractions(documentService);
+    }
+
+    @Test
+    void databaseTransactionStartFailureShouldReturnUnavailableProblem() throws Exception {
+        when(documentService.getAllDocuments())
+                .thenThrow(new CannotCreateTransactionException("sensitive database connection details"));
+        mockMvc.perform(get("/api/v1/documents"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.detail").value("Database temporarily unavailable"));
     }
 }
