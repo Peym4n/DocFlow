@@ -1,6 +1,6 @@
 # DocFlow architecture
 
-**Status:** proposed design, incorporating confirmed choices. **Research date:** 9 October 2026. This document describes the intended implementation; no application has been scaffolded, deployed or compatibility-tested yet.
+**Status:** intended architecture with a verified metadata-CRUD foundation. **Research date:** 9 October 2026. The Maven API module, layered business/persistence boundaries, MapStruct, versioned REST/problem/OpenAPI contract, PostgreSQL schema lifecycle, wrapper-based Docker/Compose setup, health checks, isolated integration tests, coverage gate and backend CI are implemented. Upload/MinIO, ownership, tags and classification/category features remain outstanding for the agreed Sprint 1 milestone; workers, frontend and cloud deployment are not implemented. See [current usage and scope](sprint-summary.md) and [readiness findings](setup-architecture-review.md).
 
 ## 1. Confirmed choices
 
@@ -211,7 +211,7 @@ Document permissions, pagination, upload limits, concurrency conflicts and error
 
 ## 5. Version baseline
 
-Prefer LTS runtimes. Most frontend libraries and Spring's community releases do not offer an equivalent LTS designation: select maintained stable versions. Preserve Spring Boot's tested dependency set instead of upgrading each transitive dependency independently. These versions are verified published releases, not a successfully tested application combination. Pin exact build dependencies, lockfiles and container digests during scaffolding.
+Prefer LTS runtimes. Most frontend libraries and Spring's community releases do not offer an equivalent LTS designation: select maintained stable versions. Preserve Spring Boot's tested dependency set instead of upgrading each transitive dependency independently. The tables retain the research-date intended baseline, not a claim that every planned component is implemented or compatibility-tested. The current API combination is build/test/container verified; its JaCoCo plugin is 0.8.14 (Java 25 compatible), while 0.8.15 below remains a proposed future baseline. Compose uses PostgreSQL 18.6 and disposable integration tests use PostgreSQL 18.3 Alpine. Pin exact build dependencies, lockfiles and container digests as components are introduced.
 
 ### Java
 
@@ -295,16 +295,17 @@ DocFlow/
   LICENSE
   .gitignore
   .env.example
-  docker-compose.yml               # Complete local/grading environment
-  docker-compose.dev.yml           # Optional developer overrides
+  docker-compose.yaml              # Current API/PostgreSQL stack; extend for later deliverables
+  docker-compose.dev.yaml          # Optional developer overrides (not currently created)
   deployment/                      # Platform service configs and start/stop runbook
     railway/                       # One configuration per deployed service
   .github/
-    workflows/ci.yml
+    workflows/backend-ci.yml
     workflows/release.yml
     dependabot.yml
   backend/
     pom.xml                        # Parent/aggregator and central versions
+    Dockerfile                     # Current API image; repository-root build context
     mvnw
     mvnw.cmd
     .mvn/wrapper/
@@ -312,7 +313,6 @@ DocFlow/
     apps/
       api/
         pom.xml
-        Dockerfile
         src/main/java/at/fhtw/docflow/
           document/
             api/                   # Controllers, DTOs, HTTP mapping
@@ -327,7 +327,7 @@ DocFlow/
           integration/             # Search/storage service agents
           configuration/
         src/main/resources/
-          application.yml
+          application.properties
         src/test/
       ocr-worker/
         pom.xml
@@ -385,7 +385,7 @@ DocFlow/
     lessons-learned.md
 ```
 
-This is the intended tree, not a set of created files. Maven builds Java and npm builds React; a monorepo needs neither Nx/Turborepo nor one package manager for both. Add shared modules only when real reuse exists. Each Java application has the usual Maven source/test tree.
+This is the intended tree, not a set of fully created files. The parent/Wrapper, API module, `backend/Dockerfile`, `docker-compose.yaml`, backend CI and OpenAPI snapshot already exist; worker/shared modules and frontend infrastructure are added only with their features. Maven builds Java and npm builds React; a monorepo needs neither Nx/Turborepo nor one package manager for both. Add shared modules only when real reuse exists. Each Java application has the usual Maven source/test tree.
 
 Use repository-root Docker build contexts when Java services need sibling modules. For this small project, rebuild the complete stack; affected-service detection is unnecessary. Keep course downloads, secrets, uploaded files, build outputs and IDE files outside Git.
 
@@ -527,6 +527,8 @@ GitHub Actions on PRs and pushes to `dev`/`main` should:
 4. Add a few integration scenarios as each sprint introduces infrastructure. The main scenario uploads a known PDF, finds it through search, reads a summary and confirms category suggestions. Stub Gemini for deterministic CI. Include a basic duplicate-message case, one AI failure case and repeated XML import; defer exhaustive crash-timing, stale-message and provider-error matrices.
 5. Build images and provide a full Compose smoke-test command. Before each sprint submission, verify the complete relevant stack, including log ingestion through Logstash and visibility in Kibana. Expensive full-stack checks may run in a manual pre-release workflow; ordinary PR checks remain fast.
 6. Publish reports and verify that the submitted ZIP contains the reviewed source/configuration/fixtures and excludes secrets/caches.
+
+The current backend workflow implements Java 25 Wrapper `clean verify`, disposable PostgreSQL integration tests, a JaCoCo 80% application line-coverage gate, report artifacts and a repository-root API Docker build. Frontend, full-system scenarios, ZIP checks and cloud workflows remain planned; do not infer those deliverables from the backend CI file.
 
 ### Simple cloud deployment
 
