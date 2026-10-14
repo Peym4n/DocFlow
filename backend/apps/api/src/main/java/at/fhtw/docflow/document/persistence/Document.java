@@ -1,4 +1,4 @@
-package com.docflow.backend.entity;
+package at.fhtw.docflow.document.persistence;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;

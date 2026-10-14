@@ -1,14 +1,13 @@
-package com.docflow.backend.service;
+package at.fhtw.docflow.document.application;
 
-import com.docflow.backend.entity.Document;
-import com.docflow.backend.repository.DocumentRepository;
+import at.fhtw.docflow.document.persistence.Document;
+import at.fhtw.docflow.document.persistence.DocumentRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import javax.print.Doc;
 import java.util.List;
 import java.util.Optional;
 

@@ -1,6 +1,6 @@
-package com.docflow.backend.repository;
+package at.fhtw.docflow.document.persistence;
 
-import com.docflow.backend.entity.Document;
+import at.fhtw.docflow.document.persistence.Document;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface DocumentRepository extends JpaRepository<Document, Long> {

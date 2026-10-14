@@ -1,8 +1,8 @@
-package com.docflow.backend.mapper;
+package at.fhtw.docflow.document.api;
 
-import com.docflow.backend.dto.DocumentRequest;
-import com.docflow.backend.dto.DocumentResponse;
-import com.docflow.backend.entity.Document;
+import at.fhtw.docflow.document.api.DocumentRequest;
+import at.fhtw.docflow.document.api.DocumentResponse;
+import at.fhtw.docflow.document.persistence.Document;
 
 public class DocumentMapper {
 

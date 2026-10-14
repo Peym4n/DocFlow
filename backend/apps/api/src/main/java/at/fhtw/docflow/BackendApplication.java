@@ -1,4 +1,4 @@
-package com.docflow.backend;
+package at.fhtw.docflow;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

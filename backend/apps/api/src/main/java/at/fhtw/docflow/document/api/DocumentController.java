@@ -1,10 +1,10 @@
-package com.docflow.backend.controller;
+package at.fhtw.docflow.document.api;
 
-import com.docflow.backend.dto.DocumentRequest;
-import com.docflow.backend.dto.DocumentResponse;
-import com.docflow.backend.entity.Document;
-import com.docflow.backend.mapper.DocumentMapper;
-import com.docflow.backend.service.DocumentService;
+import at.fhtw.docflow.document.api.DocumentRequest;
+import at.fhtw.docflow.document.api.DocumentResponse;
+import at.fhtw.docflow.document.persistence.Document;
+import at.fhtw.docflow.document.api.DocumentMapper;
+import at.fhtw.docflow.document.application.DocumentService;
 
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
