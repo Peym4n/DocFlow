@@ -1,0 +1,36 @@
+name: Backend CI
+
+on:
+  pull_request:
+  push:
+    branches: [dev, main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          cache-dependency-path: backend/**/pom.xml
+      - name: Verify unit tests, PostgreSQL integration tests, and coverage
+        working-directory: backend
+        run: bash mvnw -B -ntp clean verify
+      - name: Publish test and coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-and-coverage-reports
+          if-no-files-found: warn
+          path: |
+            backend/apps/api/target/surefire-reports/
+            backend/apps/api/target/failsafe-reports/
+            backend/apps/api/target/site/jacoco/
+      - name: Verify API Docker image build
+        run: docker build --file backend/Dockerfile --tag docflow-api:ci .
