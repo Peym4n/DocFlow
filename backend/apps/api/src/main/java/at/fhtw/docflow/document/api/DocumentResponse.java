@@ -1,4 +1,4 @@
-package com.docflow.backend.dto;
+package at.fhtw.docflow.document.api;
 
 import java.time.LocalDateTime;
 

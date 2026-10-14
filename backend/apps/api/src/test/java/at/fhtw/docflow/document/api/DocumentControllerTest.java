@@ -1,7 +1,7 @@
-package com.docflow.backend.controller;
+package at.fhtw.docflow.document.api;
 
-import com.docflow.backend.entity.Document;
-import com.docflow.backend.service.DocumentService;
+import at.fhtw.docflow.document.persistence.Document;
+import at.fhtw.docflow.document.application.DocumentService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;

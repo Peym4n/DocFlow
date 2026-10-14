@@ -1,10 +1,9 @@
-package com.docflow.backend.service;
+package at.fhtw.docflow.document.application;
 
-import com.docflow.backend.entity.Document;
-import com.docflow.backend.repository.DocumentRepository;
+import at.fhtw.docflow.document.persistence.Document;
+import at.fhtw.docflow.document.persistence.DocumentRepository;
 import org.springframework.stereotype.Service;
 
-import javax.print.Doc;
 import java.util.List;
 import java.util.Optional;
 
