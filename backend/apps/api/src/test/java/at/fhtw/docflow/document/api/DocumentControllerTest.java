@@ -1,7 +1,9 @@
 package at.fhtw.docflow.document.api;
 
-import at.fhtw.docflow.document.persistence.Document;
-import at.fhtw.docflow.document.application.DocumentService;
+import at.fhtw.docflow.document.domain.Document;
+import at.fhtw.docflow.document.domain.DocumentMetadata;
+import at.fhtw.docflow.document.application.DocumentUseCases;
+import org.mapstruct.factory.Mappers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
@@ -17,15 +19,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class DocumentControllerTest {
 
-    private DocumentService documentService;
+    private DocumentUseCases documentService;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        documentService = mock(DocumentService.class);
+        documentService = mock(DocumentUseCases.class);
 
         DocumentController controller =
-                new DocumentController(documentService);
+                new DocumentController(documentService, Mappers.getMapper(DocumentMapper.class));
 
         LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
         validator.afterPropertiesSet();
@@ -55,11 +57,11 @@ class DocumentControllerTest {
     void getDocumentByIdShouldReturn200WhenFound() throws Exception {
 
         // Arrange
-        Document document = new Document(
+        Document document = Document.create(new DocumentMetadata(
                 "rechnung.pdf",
                 "application/pdf",
                 "Stromrechnung"
-        );
+        ));
 
         when(documentService.getDocumentById(1L))
                 .thenReturn(Optional.of(document));
@@ -78,13 +80,13 @@ class DocumentControllerTest {
     void getAllDocumentsShouldReturn200() throws Exception {
 
         // Arrange
-        Document doc1 = new Document(
+        Document doc1 = Document.create(new DocumentMetadata(
                 "rechnung.pdf", "application/pdf", "Rechnung"
-        );
+        ));
 
-        Document doc2 = new Document(
+        Document doc2 = Document.create(new DocumentMetadata(
                 "vertrag.pdf", "application/pdf", "Vertrag"
-        );
+        ));
 
         when(documentService.getAllDocuments())
                 .thenReturn(List.of(doc1, doc2));
@@ -103,11 +105,11 @@ class DocumentControllerTest {
     void createDocumentShouldReturn201() throws Exception {
 
         // Arrange
-        Document document = new Document(
+        Document document = Document.create(new DocumentMetadata(
                 "rechnung.pdf", "application/pdf", "Rechnung"
-        );
+        ));
 
-        when(documentService.createDocument(any(Document.class)))
+        when(documentService.createDocument(any(DocumentMetadata.class)))
                 .thenReturn(document);
 
         String json = """
@@ -126,7 +128,7 @@ class DocumentControllerTest {
                 .andExpect(jsonPath("$.filename").value("rechnung.pdf"))
                 .andExpect(jsonPath("$.description").value("Rechnung"));
 
-        verify(documentService).createDocument(any(Document.class));
+        verify(documentService).createDocument(any(DocumentMetadata.class));
     }
 
     @Test
@@ -135,12 +137,12 @@ class DocumentControllerTest {
         // Arrange
         Long id = 1L;
 
-        Document updated = new Document(
+        Document updated = Document.create(new DocumentMetadata(
                 "neu.pdf", "application/pdf", "Neue Beschreibung"
-        );
+        ));
 
         when(documentService.updateDocument(
-                eq(id), any(Document.class)))
+                eq(id), any(DocumentMetadata.class)))
                 .thenReturn(Optional.of(updated));
 
         String json = """
@@ -160,7 +162,7 @@ class DocumentControllerTest {
                 .andExpect(jsonPath("$.description").value("Neue Beschreibung"));
 
         verify(documentService).updateDocument(
-                eq(id), any(Document.class));
+                eq(id), any(DocumentMetadata.class));
     }
 
     @Test
@@ -170,7 +172,7 @@ class DocumentControllerTest {
         Long id = 999L;
 
         when(documentService.updateDocument(
-                eq(id), any(Document.class)))
+                eq(id), any(DocumentMetadata.class)))
                 .thenReturn(Optional.empty());
 
         String json = """
@@ -188,7 +190,7 @@ class DocumentControllerTest {
                 .andExpect(status().isNotFound());
 
         verify(documentService).updateDocument(
-                eq(id), any(Document.class));
+                eq(id), any(DocumentMetadata.class));
     }
 
     @Test
@@ -244,6 +246,6 @@ class DocumentControllerTest {
                 .andExpect(status().isBadRequest());
 
         verify(documentService, never())
-                .createDocument(any(Document.class));
+                .createDocument(any(DocumentMetadata.class));
     }
 }

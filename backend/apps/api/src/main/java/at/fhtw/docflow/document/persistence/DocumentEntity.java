@@ -4,12 +4,14 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
 @Entity
-public class Document {
+@Table(name = "document")
+public class DocumentEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -22,11 +24,11 @@ public class Document {
     @CreationTimestamp
     private LocalDateTime createdAt;
 
-    protected Document() {
+    protected DocumentEntity() {
 
     }
 
-    public Document(String filename, String contentType, String description) {
+    public DocumentEntity(String filename, String contentType, String description) {
         this.filename = filename;
         this.contentType = contentType;
         this.description = description;
@@ -52,13 +54,15 @@ public class Document {
         return createdAt;
     }
 
-    public void updateMetaDate(String filename, String contentType, String description) {
+    public void setFilename(String filename) {
         this.filename = filename;
-        this.contentType = contentType;
-        this.description = description;
     }
 
+    public void setContentType(String contentType) {
+        this.contentType = contentType;
+    }
 
-
-
+    public void setDescription(String description) {
+        this.description = description;
+    }
 }

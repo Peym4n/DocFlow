@@ -1,206 +1,101 @@
 package at.fhtw.docflow.document.application;
 
-import at.fhtw.docflow.document.persistence.Document;
-import at.fhtw.docflow.document.persistence.DocumentRepository;
+import at.fhtw.docflow.document.domain.Document;
+import at.fhtw.docflow.document.domain.DocumentMetadata;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.List;
-import java.util.Optional;
-
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-
 @ExtendWith(MockitoExtension.class)
 class DocumentServiceTest {
-
     @Mock
-    private DocumentRepository documentRepository;
-
+    private DocumentStore store;
     @InjectMocks
-    private DocumentService documentService;
+    private DocumentService service;
 
     @Test
-    void createDocumentShouldSaveDocument() {
+    void createDocumentShouldSaveWithoutClientIdentity() {
+        DocumentMetadata metadata = new DocumentMetadata("invoice.pdf", "application/pdf", "Invoice");
+        Document newDocument = Document.create(metadata);
+        Document saved = new Document(1L, metadata.filename(), metadata.contentType(), metadata.description(),
+                LocalDateTime.of(2026, 10, 14, 12, 0));
+        when(store.save(newDocument)).thenReturn(saved);
 
-        // Arrange
-        Document document = new Document(
-                "rechnung.pdf",
-                "application/pdf",
-                "Stromrechnung"
-        );
-
-        when(documentRepository.save(document))
-                .thenReturn(document);
-
-        // Act
-        Document result = documentService.createDocument(document);
-
-        // Assert
-        assertSame(document, result);
-        verify(documentRepository).save(document);
+        assertEquals(saved, service.createDocument(metadata));
+        verify(store).save(newDocument);
+        assertNull(newDocument.id());
+        assertNull(newDocument.createdAt());
     }
 
     @Test
     void getAllDocumentsShouldReturnDocuments() {
-        // Arrange
-        Document doc1 = new Document(
-                "rechnung.pdf", "application/pdf", "Rechung"
-        );
-
-        Document doc2 = new Document(
-                "vertrag.pdf", "application/pdf", "Vertrag"
-        );
-
-        List<Document> documents = List.of(doc1, doc2);
-
-        when(documentRepository.findAll()).thenReturn(documents);
-
-        // Act
-        List<Document> result = documentService.getAllDocuments();
-
-        // Assert
-        assertEquals(2, result.size());
-        assertEquals(documents, result);
-        verify(documentRepository).findAll();
+        List<Document> documents = List.of(document(1L), document(2L));
+        when(store.findAll()).thenReturn(documents);
+        assertEquals(documents, service.getAllDocuments());
     }
 
     @Test
     void getDocumentByIdShouldReturnDocument() {
-
-        // Arrange
-        Long id = 1L;
-        Document document = new Document(
-                "rechung.pdf", "application/pdf", "Rechnung"
-        );
-
-        when(documentRepository.findById(id))
-                .thenReturn(Optional.of(document));
-
-        // Act
-        Optional<Document> result = documentService.getDocumentById(id);
-
-        // Assert
-        assertTrue(result.isPresent());
-        assertSame(document, result.get());
-        verify(documentRepository).findById(id);
+        Document document = document(1L);
+        when(store.findById(1L)).thenReturn(Optional.of(document));
+        assertEquals(Optional.of(document), service.getDocumentById(1L));
     }
-
 
     @Test
     void getDocumentByIdShouldReturnEmptyWhenNotFound() {
-
-        // Arrange
-        Long id = 999L;
-
-        when(documentRepository.findById(id))
-                .thenReturn(Optional.empty());
-
-        // Act
-        Optional<Document> result = documentService.getDocumentById(id);
-
-        // Assert
-        assertTrue(result.isEmpty());
-        verify(documentRepository).findById(id);
+        when(store.findById(999L)).thenReturn(Optional.empty());
+        assertTrue(service.getDocumentById(999L).isEmpty());
     }
 
-
     @Test
-    void updateDocumentShouldUpdateMetadata() {
+    void updateDocumentShouldPreserveIdentityAndCreationTimeAndClearDescription() {
+        Document existing = document(1L);
+        DocumentMetadata replacement = new DocumentMetadata("renamed.pdf", "application/pdf", null);
+        Document updated = existing.withMetadata(replacement);
+        when(store.findById(1L)).thenReturn(Optional.of(existing));
+        when(store.save(updated)).thenReturn(updated);
 
-        // Arrange
-        Long id = 1L;
-
-        Document existing = new Document(
-                "alt.pdf", "application/pdf", "Alte Beschreibung"
-        );
-
-        Document updated = new Document(
-                "neu.pdf", "application/pdf", "Neue Beschreibung"
-        );
-
-        when(documentRepository.findById(id))
-                .thenReturn(Optional.of(existing));
-
-        when(documentRepository.save(existing))
-                .thenReturn(existing);
-
-        // Act
-        Optional<Document> result =
-                documentService.updateDocument(id, updated);
-
-        // Assert
-        assertTrue(result.isPresent());
-        assertEquals("neu.pdf", result.get().getFilename());
-        assertEquals("application/pdf", result.get().getContentType());
-        assertEquals("Neue Beschreibung", result.get().getDescription());
-
-        verify(documentRepository).findById(id);
-        verify(documentRepository).save(existing);
+        Document result = service.updateDocument(1L, replacement).orElseThrow();
+        assertEquals(existing.id(), result.id());
+        assertEquals(existing.createdAt(), result.createdAt());
+        assertEquals("renamed.pdf", result.filename());
+        assertNull(result.description());
+        assertEquals("Original", existing.description());
+        verify(store).save(updated);
     }
 
-
     @Test
-    void updateDocumentShouldReturnEmptyWhenNotFound() {
-
-        // Arrange
-        Long id = 999L;
-
-        Document updated = new Document(
-                "neu.pdf", "application/pdf", "Beschreibung"
-        );
-
-        when(documentRepository.findById(id))
-                .thenReturn(Optional.empty());
-
-        // Act
-        Optional<Document> result =
-                documentService.updateDocument(id, updated);
-
-        // Assert
-        assertTrue(result.isEmpty());
-
-        verify(documentRepository).findById(id);
-        verify(documentRepository, never()).save(any(Document.class));
+    void updateDocumentShouldNotSaveWhenNotFound() {
+        when(store.findById(999L)).thenReturn(Optional.empty());
+        assertTrue(service.updateDocument(999L,
+                new DocumentMetadata("invoice.pdf", "application/pdf", null)).isEmpty());
+        verify(store, never()).save(any());
     }
 
     @Test
     void deleteDocumentShouldDeleteExistingDocument() {
-
-        // Arrange
-        Long id = 1L;
-
-        when(documentRepository.existsById(id)).thenReturn(true);
-
-        // Act
-        boolean result = documentService.deleteDocument(id);
-
-        // Assert
-        assertTrue(result);
-        verify(documentRepository).existsById(id);
-        verify(documentRepository).deleteById(id);
+        when(store.existsById(1L)).thenReturn(true);
+        assertTrue(service.deleteDocument(1L));
+        verify(store).deleteById(1L);
     }
 
-
     @Test
-    void deleteDocumentShouldReturnFalseWhenNotFound() {
+    void deleteDocumentShouldNotDeleteWhenNotFound() {
+        when(store.existsById(999L)).thenReturn(false);
+        assertFalse(service.deleteDocument(999L));
+        verify(store, never()).deleteById(anyLong());
+    }
 
-        // Arrange
-        Long id = 999L;
-
-        when(documentRepository.existsById(id)).thenReturn(false);
-
-        // Act
-        boolean result = documentService.deleteDocument(id);
-
-        // Assert
-        assertFalse(result);
-
-        verify(documentRepository).existsById(id);
-        verify(documentRepository, never()).deleteById(anyLong());
+    private Document document(long id) {
+        return new Document(id, "invoice.pdf", "application/pdf", "Original",
+                LocalDateTime.of(2026, 10, 14, 12, 0));
     }
 }
