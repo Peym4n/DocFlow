@@ -93,7 +93,7 @@ src/
 - Keep server data in React Query, not in Context or duplicated local state; invalidate queries after mutations instead of manually syncing.
 - No default-export sprawl — prefer named exports matching file names.
 - Sparse, useful comments only (e.g. why a polling interval or cache rule exists).
-- GitFlow: feature branches -> PR to `develop` -> release PR to `main`; every PR reviewed by a teammate.
+- GitFlow: feature branches -> PR to `dev` -> release PR to `main`; every PR reviewed by a teammate.
 
 ## Implementation Checklist
 
