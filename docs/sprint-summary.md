@@ -7,8 +7,9 @@
 ## Progress tracking
 
 - **Setup:** Groups 1–6 are complete, including backend CI and setup documentation.
-- **Verification baseline:** 31 isolated tests and 6 integration tests pass; application line coverage is 97.2%. Docker/Compose startup, API examples, health, Swagger and OpenAPI export were checked successfully.
-- **Sprint 1:** Metadata CRUD is implemented; ownership, PDF upload/MinIO, tagging, classification/category foundations and pagination remain outstanding.
+- **Verification baseline:** 38 isolated tests and 12 integration tests pass; application line coverage is 98.7%. Docker/Compose demo startup, metadata/title examples, owner isolation, normal-mode identity rejection, health and OpenAPI export are verified.
+- **Sprint 1 group 1 complete:** Minimal User ownership, owner-scoped document operations, editable titles and protected original-object-key metadata are implemented. The opt-in `demo` profile seeds one local owner; normal mode requires a trusted principal. Full authentication remains Sprint 2.
+- **Sprint 1 remaining:** PDF upload/MinIO, tagging, classification/category foundations and pagination remain outstanding.
 - **Later work:** React, authentication, messaging, OCR/search, live AI/PWA and batch processing remain scheduled for later sprints. Add frontend CI when the frontend is introduced.
 - **Delivery checks:** Remote CI execution, repository access/branch protection and clean-checkout submission ZIP verification still require confirmation.
 
@@ -22,7 +23,7 @@
 - Externalized database configuration, wrapper-based multi-stage Docker image, non-root runtime, Compose readiness checks, Actuator, `.env.example` and repository ignore rules.
 - Isolated tests, PostgreSQL Testcontainers integration tests, JaCoCo 0.8.14 reporting/80% line-coverage gate, and GitHub Actions for PRs and pushes to `dev`/`main`.
 
-This stores **metadata only**, not PDF bytes. There is no frontend, authentication, owner enforcement, MinIO, RabbitMQ, OCR, Elasticsearch, live AI, classification/category/tag API or batch application yet. `contentType` is validated for presence/length, not MIME syntax or actual PDF contents. Listing is unpaginated.
+This stores **metadata only**, not PDF bytes. Owner scoping is enforced through application and persistence contracts. The minimal `app_user` table stores normalized unique usernames and IDs for ownership only; passwords, roles and account/login workflows are not implemented. There is no frontend, authentication, MinIO, RabbitMQ, OCR, Elasticsearch, live AI, classification/category/tag API or batch application yet. `contentType` is validated for presence/length, not MIME syntax or actual PDF contents. Listing is unpaginated.
 
 ## Structure and boundaries
 
@@ -69,6 +70,7 @@ Copy repository-root `.env.example` to the ignored `.env`, then choose a local p
 | `POSTGRES_PASSWORD` | Set your own | Required password; `.env.example` contains only a placeholder |
 | `POSTGRES_PORT` | `5432` | Host database port; Compose DB remains port 5432 internally |
 | `API_PORT` | `8080` | Host API port in Compose |
+| `SPRING_PROFILES_ACTIVE` | Empty | Set explicitly to `demo` for single-user local demonstrations without authentication |
 | `SERVER_PORT` | `8080` | Local Java HTTP port; Compose fixes the container port at 8080 |
 | `SPRING_DATASOURCE_URL` | Derived from local DB variables | Optional explicit local JDBC URL |
 | `SPRING_DATASOURCE_USERNAME` | `POSTGRES_USER` | Optional explicit local database username |
@@ -77,6 +79,14 @@ Copy repository-root `.env.example` to the ignored `.env`, then choose a local p
 Compose loads `.env`; Spring Boot and Maven **do not** load that file automatically. For local Java, export the same database variables in the shell or configure them in the IDE run configuration. Keep passwords out of command-line arguments and source files. `API_PORT` is only a Compose host mapping; use `SERVER_PORT` for local Java.
 
 PostgreSQL image initialization uses database/user/password variables only on a new data directory. Editing `.env` does not rotate credentials in an existing volume. Reuse the matching credentials or explicitly prepare a different database/volume; do not remove a volume just to bypass a login failure. The PostgreSQL 18 Compose volume is distinct from the old PostgreSQL 17 volume; do not attach an older major-version data directory without a proper upgrade.
+
+### Temporary owner selection
+
+For local demonstrations only, set `SPRING_PROFILES_ACTIVE=demo` explicitly in `.env` (Compose) or in the local Java/IDE environment. Startup seeds a single username `demo`; all document requests run as that server-selected owner. The profile bypasses authentication and must not be exposed publicly. No password or login account is created, and client-supplied owner fields/headers cannot switch identity. Leave the profile unset outside local demonstrations.
+
+Without `demo`, the API resolves the servlet container's trusted principal through `OwnerDirectory` and returns `401 application/problem+json` when it is missing or unknown. It does not interpret bearer tokens or arbitrary headers as identity. Login/JWT will supply the trusted principal in Sprint 2, replacing the demo provider without changing owner-scoped document use cases. Health and OpenAPI stay accessible without an owner.
+
+The required owner foreign key has no cascade to shared users. Metadata-only records have a null `originalObjectKey`; the upcoming upload service can supply a server-generated key through the business factory. The key is neither exposed as a request field nor editable after creation.
 
 ### Full Compose stack
 
@@ -132,6 +142,7 @@ $env:POSTGRES_DB = 'docflow'
 $env:POSTGRES_USER = 'docflow'
 $env:POSTGRES_PORT = '5432'
 $env:SERVER_PORT = '8080'
+$env:SPRING_PROFILES_ACTIVE = 'demo'
 $env:POSTGRES_PASSWORD = [System.Net.NetworkCredential]::new('', (Read-Host 'Local PostgreSQL password' -AsSecureString)).Password
 Set-Location backend
 ./mvnw.cmd -B -ntp -pl apps/api spring-boot:run
@@ -168,15 +179,17 @@ Default origin: `http://localhost:8080`; substitute your configured API port. No
 | `filename` | Required, nonblank, maximum 255 characters |
 | `contentType` | Required, nonblank, maximum 255 characters |
 | `description` | Optional/nullable, maximum 255 characters |
+| `title` | Optional, nonblank when supplied, maximum 255 characters; null/omitted defaults to the supplied filename |
 | `id`, `createdAt` | Response only; request fields are rejected |
+| `ownerId`, `originalObjectKey` | Internal protected fields; not accepted in requests or exposed in metadata responses |
 
-PUT replaces the whole editable representation. Omitting required fields is invalid; null or omitted description clears it. ID and creation time are preserved. Unknown fields are rejected for POST/PUT. POST is a setup-only JSON metadata operation returning `201`, **not** the planned multipart PDF upload returning `202`.
+PUT replaces the whole editable representation. Omitting required fields is invalid; null or omitted description clears it. Owner, ID, creation time and original object key are preserved. Title defaults to the supplied filename if omitted or null, including on PUT. Unknown fields are rejected for POST/PUT. POST is a setup-only JSON metadata operation returning `201`, **not** the planned multipart PDF upload returning `202`.
 
-Errors use `application/problem+json` with `type`, `title`, `status`, `detail` and `instance`; validation errors additionally contain field messages under `errors`. Invalid input/JSON/ID returns `400`, missing documents `404`, unsupported methods `405`, stored-data conflicts `409`, and handled database failures `503`. Responses do not expose SQL, connection details or stack traces.
+Errors use `application/problem+json` with `type`, `title`, `status`, `detail` and `instance`; validation errors additionally contain field messages under `errors`. Invalid input/JSON/ID returns `400`, missing/unknown trusted identity outside demo mode returns `401`, missing or other owners' documents return `404`, unsupported methods `405`, stored-data conflicts `409`, and handled database failures `503`. Responses do not expose SQL, connection details or stack traces.
 
 ### Runnable examples (PowerShell)
 
-These requests create and then delete only the example record. Use the ID returned by POST rather than assuming ID 1. Run against a disposable local demonstration database.
+These requests create and then delete only the example record. Use the ID returned by POST rather than assuming ID 1. Run with the explicit `demo` profile against a disposable local demonstration database.
 
 ```powershell
 $base = 'http://localhost:8080'
@@ -235,12 +248,12 @@ Use `./mvnw.cmd` in PowerShell. `test` runs only isolated tests without a databa
 
 | Suite | Verified tests | Coverage focus |
 | --- | --- | --- |
-| Surefire isolated tests | 31 | Business use cases/validation, MockMvc routes/statuses/errors and custom/protected-field mappings |
-| Failsafe integration tests | 6 | Isolated context startup, generated PostgreSQL schema, persistence/metadata replacement/deletion, transaction rollback and real HTTP contract/health/OpenAPI |
+| Surefire isolated tests | 38 | Owner-scoped business use cases, metadata/title/storage invariants, MockMvc contracts, protected mappings and trusted-principal/username handling |
+| Failsafe integration tests | 12 | Isolated context, two-owner PostgreSQL isolation, protected storage metadata, foreign keys, rollback, demo HTTP contracts and normal-mode identity rejection |
 
-`BackendApplicationTests` belongs to Failsafe even though its name ends in `Tests`. Other integration classes use `*IT`. Container lifetimes and Spring contexts are isolated per integration class. Integration tests validate implemented metadata behavior, not absent ownership/classification relationships or external storage.
+`BackendApplicationTests` belongs to Failsafe even though its name ends in `Tests`. Other integration classes use `*IT`. Container lifetimes and Spring contexts are isolated per integration class. Integration tests validate metadata behavior and owner relationships/isolation; classification relationships and external storage remain unimplemented.
 
-JaCoCo 0.8.14 combines unit/integration execution data and enforces a bundle/application **LINE COVEREDRATIO >= 0.80** at `verify`. Only `DocumentMapperImpl` and `DocumentPersistenceMapperImpl` generated classes are excluded; entities, DTOs, services, adapters, controllers and exception/configuration code remain included. The verified baseline is **105 covered of 108 application lines (97.2%)**; generated reports are authoritative after future changes.
+JaCoCo 0.8.14 combines unit/integration execution data and enforces a bundle/application **LINE COVEREDRATIO >= 0.80** at `verify`. Only `DocumentMapperImpl` and `DocumentPersistenceMapperImpl` generated classes are excluded; entities, DTOs, services, adapters, controllers and exception/configuration code remain included. The verified baseline is **154 covered of 156 application lines (98.7%)**; generated reports are authoritative after future changes.
 
 Reports under `backend/apps/api/target/`:
 
@@ -256,7 +269,7 @@ Reports under `backend/apps/api/target/`:
 
 The accepted scope has not been reduced to match the scaffold:
 
-1. **Ownership and document foundation:** owner relationship/fixtures and owner-scoped persistence; title/storage metadata. Full principal/JWT authentication remains Sprint 2.
+1. **Ownership follow-up (Sprint 2):** connect real authentication/account workflows to the trusted-principal provider. The Sprint 1 owner relationship, fixtures, owner-scoped use cases/persistence and title/storage metadata foundation are complete.
 2. **PDF upload and MinIO:** storage adapter, bounded file validation, server-generated keys, content retrieval/status, cleanup on failed database save and Compose storage service. MinIO is explicitly included in the team's Sprint 1 plan.
 3. **Additional use case:** category CRUD, current classification suggestions and many-to-many accepted assignments, deterministic classifier fixtures/interface, explicit multi-label confirmation and protected shared entities. The use case is designed, but not implemented; live Gemini is Sprint 5.
 4. **Tags and pagination:** separate tag relationships/API plus bounded owner-scoped listing and a documented page representation.

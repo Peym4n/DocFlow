@@ -6,8 +6,7 @@ import java.util.Optional;
 
 public interface DocumentStore {
     Document save(Document document);
-    List<Document> findAll();
-    Optional<Document> findById(Long id);
-    boolean existsById(Long id);
-    void deleteById(Long id);
+    List<Document> findAllByOwnerId(long ownerId);
+    Optional<Document> findByIdAndOwnerId(Long id, long ownerId);
+    boolean deleteByIdAndOwnerId(Long id, long ownerId);
 }

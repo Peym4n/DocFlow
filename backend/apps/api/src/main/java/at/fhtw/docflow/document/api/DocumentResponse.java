@@ -7,6 +7,7 @@ public record DocumentResponse(
         String filename,
         String contentType,
         String description,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        String title
 ) {
 }

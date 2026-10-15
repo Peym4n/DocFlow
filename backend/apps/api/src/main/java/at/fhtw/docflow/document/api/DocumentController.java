@@ -3,6 +3,7 @@ package at.fhtw.docflow.document.api;
 import at.fhtw.docflow.document.application.DocumentNotFoundException;
 import at.fhtw.docflow.document.application.DocumentUseCases;
 import at.fhtw.docflow.document.domain.DocumentMetadata;
+import at.fhtw.docflow.identity.application.CurrentOwner;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -23,6 +24,8 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping(value = "/api/v1/documents", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Documents", description = "Setup metadata operations; file upload is pending")
 @ApiResponses({
+        @ApiResponse(responseCode = "401", description = "Authenticated owner required outside the explicit local demo profile",
+                content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class))),
         @ApiResponse(responseCode = "400", description = "Invalid request",
                 content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class))),
         @ApiResponse(responseCode = "409", description = "Stored data conflict",
@@ -33,10 +36,12 @@ import org.springframework.web.bind.annotation.*;
 public class DocumentController {
     private final DocumentUseCases documentService;
     private final DocumentMapper documentMapper;
+    private final CurrentOwner currentOwner;
 
-    public DocumentController(DocumentUseCases documentService, DocumentMapper documentMapper) {
+    public DocumentController(DocumentUseCases documentService, DocumentMapper documentMapper, CurrentOwner currentOwner) {
         this.documentService = documentService;
         this.documentMapper = documentMapper;
+        this.currentOwner = currentOwner;
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -47,16 +52,16 @@ public class DocumentController {
             content = @Content(schema = @Schema(implementation = DocumentResponse.class)))
     public ResponseEntity<DocumentResponse> createDocument(@Valid @RequestBody DocumentRequest request) {
         DocumentMetadata metadata = documentMapper.toMetadata(request);
-        DocumentResponse saved = documentMapper.toResponse(documentService.createDocument(metadata));
+        DocumentResponse saved = documentMapper.toResponse(documentService.createDocument(currentOwner.requireOwnerId(), metadata));
         return ResponseEntity.created(URI.create("/api/v1/documents/" + saved.id())).body(saved);
     }
 
     @GetMapping
-    @Operation(summary = "List metadata records", description = "Scaffold returns an unpaginated list.")
+    @Operation(summary = "List metadata records", description = "Returns an unpaginated list belonging to the current owner.")
     @ApiResponse(responseCode = "200", description = "Metadata records",
             content = @Content(array = @ArraySchema(schema = @Schema(implementation = DocumentResponse.class))))
     public List<DocumentResponse> getAllDocuments() {
-        return documentService.getAllDocuments().stream().map(documentMapper::toResponse).toList();
+        return documentService.getAllDocuments(currentOwner.requireOwnerId()).stream().map(documentMapper::toResponse).toList();
     }
 
     @GetMapping("/{id}")
@@ -66,19 +71,19 @@ public class DocumentController {
     @ApiResponse(responseCode = "200", description = "Document metadata",
             content = @Content(schema = @Schema(implementation = DocumentResponse.class)))
     public DocumentResponse getDocumentById(@PathVariable Long id) {
-        return documentService.getDocumentById(id).map(documentMapper::toResponse)
+        return documentService.getDocumentById(currentOwner.requireOwnerId(), id).map(documentMapper::toResponse)
                 .orElseThrow(() -> new DocumentNotFoundException(id));
     }
 
     @PutMapping(value = "/{id}/metadata", consumes = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Replace editable metadata",
-            description = "filename and contentType are required. Null description clears it. ID and creation time are preserved; unknown fields are rejected.")
+            description = "filename and contentType are required. Null description clears it. Null or omitted title defaults to filename. Owner, ID, creation time and storage key are protected; unknown fields are rejected.")
     @ApiResponse(responseCode = "404", description = "Document not found",
             content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class)))
     @ApiResponse(responseCode = "200", description = "Updated metadata",
             content = @Content(schema = @Schema(implementation = DocumentResponse.class)))
     public DocumentResponse updateDocument(@PathVariable Long id, @Valid @RequestBody DocumentMetadataRequest request) {
-        return documentService.updateDocument(id, documentMapper.toMetadata(request)).map(documentMapper::toResponse)
+        return documentService.updateDocument(currentOwner.requireOwnerId(), id, documentMapper.toMetadata(request)).map(documentMapper::toResponse)
                 .orElseThrow(() -> new DocumentNotFoundException(id));
     }
 
@@ -90,7 +95,7 @@ public class DocumentController {
                     content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ProblemDetail.class)))
     })
     public ResponseEntity<Void> deleteDocument(@PathVariable Long id) {
-        if (!documentService.deleteDocument(id)) {
+        if (!documentService.deleteDocument(currentOwner.requireOwnerId(), id)) {
             throw new DocumentNotFoundException(id);
         }
         return ResponseEntity.noContent().build();

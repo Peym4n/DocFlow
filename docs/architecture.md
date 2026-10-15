@@ -1,6 +1,6 @@
 # DocFlow architecture
 
-**Status:** intended architecture with a verified metadata-CRUD foundation. **Research date:** 9 October 2026. The Maven API module, layered business/persistence boundaries, MapStruct, versioned REST/problem/OpenAPI contract, PostgreSQL schema lifecycle, wrapper-based Docker/Compose setup, health checks, isolated integration tests, coverage gate and backend CI are implemented. Upload/MinIO, ownership, tags and classification/category features remain outstanding for the agreed Sprint 1 milestone; workers, frontend and cloud deployment are not implemented. See [current usage and scope](sprint-summary.md) and [readiness findings](setup-architecture-review.md).
+**Status:** intended architecture with a verified metadata-CRUD foundation. **Research date:** 9 October 2026. The Maven API module, layered business/persistence boundaries, MapStruct, versioned REST/problem/OpenAPI contract, PostgreSQL schema lifecycle, wrapper-based Docker/Compose setup, health checks, isolated integration tests, coverage gate and backend CI are implemented. The owner-scoped document foundation, editable titles and protected storage-key metadata are implemented, with an explicit local single-user demo profile until Sprint 2 authentication. Upload/MinIO, tags and classification/category features remain outstanding for the agreed Sprint 1 milestone; workers, frontend and cloud deployment are not implemented. See [current usage and scope](sprint-summary.md) and [readiness findings](setup-architecture-review.md).
 
 ## 1. Confirmed choices
 

@@ -9,5 +9,6 @@ import jakarta.validation.constraints.Size;
 public record DocumentMetadataRequest(
         @NotBlank @Size(max = 255) String filename,
         @NotBlank @Size(max = 255) String contentType,
-        @Size(max = 255) @Schema(nullable = true) String description) {
+        @Size(max = 255) @Schema(nullable = true) String description,
+        @Size(max = 255) @Schema(description = "Document title; defaults to filename when omitted") String title) {
 }

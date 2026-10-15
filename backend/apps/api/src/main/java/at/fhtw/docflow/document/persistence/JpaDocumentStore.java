@@ -3,6 +3,7 @@ package at.fhtw.docflow.document.persistence;
 import at.fhtw.docflow.document.application.DocumentStore;
 import at.fhtw.docflow.document.application.DocumentNotFoundException;
 import at.fhtw.docflow.document.domain.Document;
+import at.fhtw.docflow.identity.persistence.UserRepository;
 import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
@@ -11,10 +12,12 @@ import java.util.Optional;
 public class JpaDocumentStore implements DocumentStore {
     private final DocumentRepository repository;
     private final DocumentPersistenceMapper mapper;
+    private final UserRepository users;
 
-    public JpaDocumentStore(DocumentRepository repository, DocumentPersistenceMapper mapper) {
+    public JpaDocumentStore(DocumentRepository repository, DocumentPersistenceMapper mapper, UserRepository users) {
         this.repository = repository;
         this.mapper = mapper;
+        this.users = users;
     }
 
     @Override
@@ -22,8 +25,9 @@ public class JpaDocumentStore implements DocumentStore {
         DocumentEntity entity;
         if (document.id() == null) {
             entity = mapper.toNewEntity(document);
+            entity.setOwner(users.getReferenceById(document.ownerId()));
         } else {
-            entity = repository.findById(document.id())
+            entity = repository.findByIdAndOwnerId(document.id(), document.ownerId())
                     .orElseThrow(() -> new DocumentNotFoundException(document.id()));
             mapper.updateMetadata(document, entity);
         }
@@ -31,22 +35,17 @@ public class JpaDocumentStore implements DocumentStore {
     }
 
     @Override
-    public List<Document> findAll() {
-        return repository.findAll().stream().map(mapper::toDomain).toList();
+    public List<Document> findAllByOwnerId(long ownerId) {
+        return repository.findAllByOwnerId(ownerId).stream().map(mapper::toDomain).toList();
     }
 
     @Override
-    public Optional<Document> findById(Long id) {
-        return repository.findById(id).map(mapper::toDomain);
+    public Optional<Document> findByIdAndOwnerId(Long id, long ownerId) {
+        return repository.findByIdAndOwnerId(id, ownerId).map(mapper::toDomain);
     }
 
     @Override
-    public boolean existsById(Long id) {
-        return repository.existsById(id);
-    }
-
-    @Override
-    public void deleteById(Long id) {
-        repository.deleteById(id);
+    public boolean deleteByIdAndOwnerId(Long id, long ownerId) {
+        return repository.deleteOwnedDocument(id, ownerId) > 0;
     }
 }

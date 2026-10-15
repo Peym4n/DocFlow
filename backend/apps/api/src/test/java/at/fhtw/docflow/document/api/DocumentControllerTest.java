@@ -33,7 +33,7 @@ class DocumentControllerTest {
         documentService = mock(DocumentUseCases.class);
 
         DocumentController controller =
-                new DocumentController(documentService, Mappers.getMapper(DocumentMapper.class));
+                new DocumentController(documentService, Mappers.getMapper(DocumentMapper.class), () -> 7L);
 
         LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
         validator.afterPropertiesSet();
@@ -49,7 +49,7 @@ class DocumentControllerTest {
     void getDocumentByIdShouldReturn404WhenNotFound() throws Exception {
 
         // Arrange
-        when(documentService.getDocumentById(999L))
+        when(documentService.getDocumentById(7L, 999L))
                 .thenReturn(Optional.empty());
 
         // Act & Assert
@@ -59,7 +59,7 @@ class DocumentControllerTest {
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.title").value("Not Found"));
 
-        verify(documentService).getDocumentById(999L);
+        verify(documentService).getDocumentById(7L, 999L);
     }
 
 
@@ -67,13 +67,13 @@ class DocumentControllerTest {
     void getDocumentByIdShouldReturn200WhenFound() throws Exception {
 
         // Arrange
-        Document document = Document.create(new DocumentMetadata(
+        Document document = Document.create(7L, new DocumentMetadata(
                 "rechnung.pdf",
                 "application/pdf",
                 "Stromrechnung"
         ));
 
-        when(documentService.getDocumentById(1L))
+        when(documentService.getDocumentById(7L, 1L))
                 .thenReturn(Optional.of(document));
 
         // Act & Assert
@@ -83,22 +83,22 @@ class DocumentControllerTest {
                 .andExpect(jsonPath("$.contentType").value("application/pdf"))
                 .andExpect(jsonPath("$.description").value("Stromrechnung"));
 
-        verify(documentService).getDocumentById(1L);
+        verify(documentService).getDocumentById(7L, 1L);
     }
 
     @Test
     void getAllDocumentsShouldReturn200() throws Exception {
 
         // Arrange
-        Document doc1 = Document.create(new DocumentMetadata(
+        Document doc1 = Document.create(7L, new DocumentMetadata(
                 "rechnung.pdf", "application/pdf", "Rechnung"
         ));
 
-        Document doc2 = Document.create(new DocumentMetadata(
+        Document doc2 = Document.create(7L, new DocumentMetadata(
                 "vertrag.pdf", "application/pdf", "Vertrag"
         ));
 
-        when(documentService.getAllDocuments())
+        when(documentService.getAllDocuments(7L))
                 .thenReturn(List.of(doc1, doc2));
 
         // Act & Assert
@@ -108,7 +108,7 @@ class DocumentControllerTest {
                 .andExpect(jsonPath("$[0].filename").value("rechnung.pdf"))
                 .andExpect(jsonPath("$[1].filename").value("vertrag.pdf"));
 
-        verify(documentService).getAllDocuments();
+        verify(documentService).getAllDocuments(7L);
     }
 
     @Test
@@ -116,9 +116,9 @@ class DocumentControllerTest {
 
         // Arrange
         Document document = new Document(1L, "rechnung.pdf", "application/pdf", "Rechnung",
-                LocalDateTime.of(2026, 10, 14, 12, 0));
+                LocalDateTime.of(2026, 10, 14, 12, 0), 7L, "Invoice", null);
 
-        when(documentService.createDocument(any(DocumentMetadata.class)))
+        when(documentService.createDocument(eq(7L), any(DocumentMetadata.class)))
                 .thenReturn(document);
 
         String json = """
@@ -138,7 +138,7 @@ class DocumentControllerTest {
                 .andExpect(jsonPath("$.filename").value("rechnung.pdf"))
                 .andExpect(jsonPath("$.description").value("Rechnung"));
 
-        verify(documentService).createDocument(any(DocumentMetadata.class));
+        verify(documentService).createDocument(eq(7L), any(DocumentMetadata.class));
     }
 
     @Test
@@ -147,12 +147,12 @@ class DocumentControllerTest {
         // Arrange
         Long id = 1L;
 
-        Document updated = Document.create(new DocumentMetadata(
+        Document updated = Document.create(7L, new DocumentMetadata(
                 "neu.pdf", "application/pdf", "Neue Beschreibung"
         ));
 
         when(documentService.updateDocument(
-                eq(id), any(DocumentMetadata.class)))
+                eq(7L), eq(id), any(DocumentMetadata.class)))
                 .thenReturn(Optional.of(updated));
 
         String json = """
@@ -172,7 +172,7 @@ class DocumentControllerTest {
                 .andExpect(jsonPath("$.description").value("Neue Beschreibung"));
 
         verify(documentService).updateDocument(
-                eq(id), any(DocumentMetadata.class));
+                eq(7L), eq(id), any(DocumentMetadata.class));
     }
 
     @Test
@@ -182,7 +182,7 @@ class DocumentControllerTest {
         Long id = 999L;
 
         when(documentService.updateDocument(
-                eq(id), any(DocumentMetadata.class)))
+                eq(7L), eq(id), any(DocumentMetadata.class)))
                 .thenReturn(Optional.empty());
 
         String json = """
@@ -203,7 +203,7 @@ class DocumentControllerTest {
                 .andExpect(jsonPath("$.title").value("Not Found"));
 
         verify(documentService).updateDocument(
-                eq(id), any(DocumentMetadata.class));
+                eq(7L), eq(id), any(DocumentMetadata.class));
     }
 
     @Test
@@ -212,14 +212,14 @@ class DocumentControllerTest {
         // Arrange
         Long id = 1L;
 
-        when(documentService.deleteDocument(id))
+        when(documentService.deleteDocument(7L, id))
                 .thenReturn(true);
 
         // Act & Assert
         mockMvc.perform(delete("/api/v1/documents/{id}", id))
                 .andExpect(status().isNoContent());
 
-        verify(documentService).deleteDocument(id);
+        verify(documentService).deleteDocument(7L, id);
     }
 
 
@@ -229,7 +229,7 @@ class DocumentControllerTest {
         // Arrange
         Long id = 999L;
 
-        when(documentService.deleteDocument(id))
+        when(documentService.deleteDocument(7L, id))
                 .thenReturn(false);
 
         // Act & Assert
@@ -239,7 +239,7 @@ class DocumentControllerTest {
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.title").value("Not Found"));
 
-        verify(documentService).deleteDocument(id);
+        verify(documentService).deleteDocument(7L, id);
     }
 
 
@@ -265,7 +265,7 @@ class DocumentControllerTest {
                 .andExpect(jsonPath("$.errors.filename").exists());
 
         verify(documentService, never())
-                .createDocument(any(DocumentMetadata.class));
+                .createDocument(eq(7L), any(DocumentMetadata.class));
     }
 
     @Test
@@ -283,8 +283,8 @@ class DocumentControllerTest {
     void updateDocumentShouldClearDescriptionAndPreserveResponseIdentity() throws Exception {
         LocalDateTime createdAt = LocalDateTime.of(2026, 10, 14, 12, 0);
         DocumentMetadata replacement = new DocumentMetadata("new.pdf", "application/pdf", null);
-        when(documentService.updateDocument(1L, replacement)).thenReturn(Optional.of(
-                new Document(1L, replacement.filename(), replacement.contentType(), null, createdAt)));
+        when(documentService.updateDocument(7L, 1L, replacement)).thenReturn(Optional.of(
+                new Document(1L, replacement.filename(), replacement.contentType(), null, createdAt, 7L, replacement.title(), "documents/original.pdf")));
         mockMvc.perform(put("/api/v1/documents/1/metadata")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"filename\":\"new.pdf\",\"contentType\":\"application/pdf\",\"description\":null}"))
@@ -292,7 +292,7 @@ class DocumentControllerTest {
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.createdAt").value("2026-10-14T12:00:00"))
                 .andExpect(jsonPath("$.description").doesNotExist());
-        verify(documentService).updateDocument(1L, replacement);
+        verify(documentService).updateDocument(7L, 1L, replacement);
     }
 
     @Test
@@ -325,7 +325,7 @@ class DocumentControllerTest {
 
     @Test
     void databaseConflictShouldNotExposeSql() throws Exception {
-        when(documentService.createDocument(any(DocumentMetadata.class)))
+        when(documentService.createDocument(eq(7L), any(DocumentMetadata.class)))
                 .thenThrow(new DataIntegrityViolationException("sensitive SQL and file paths"));
         mockMvc.perform(post("/api/v1/documents")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -336,7 +336,7 @@ class DocumentControllerTest {
 
     @Test
     void databaseFailureShouldReturnUnavailableProblem() throws Exception {
-        when(documentService.getAllDocuments())
+        when(documentService.getAllDocuments(7L))
                 .thenThrow(new DataAccessResourceFailureException("sensitive connection details"));
         mockMvc.perform(get("/api/v1/documents"))
                 .andExpect(status().isServiceUnavailable())
@@ -352,7 +352,7 @@ class DocumentControllerTest {
 
     @Test
     void databaseTransactionStartFailureShouldReturnUnavailableProblem() throws Exception {
-        when(documentService.getAllDocuments())
+        when(documentService.getAllDocuments(7L))
                 .thenThrow(new CannotCreateTransactionException("sensitive database connection details"));
         mockMvc.perform(get("/api/v1/documents"))
                 .andExpect(status().isServiceUnavailable())

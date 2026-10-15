@@ -6,9 +6,9 @@ import java.util.List;
 import java.util.Optional;
 
 public interface DocumentUseCases {
-    Document createDocument(DocumentMetadata metadata);
-    List<Document> getAllDocuments();
-    Optional<Document> getDocumentById(Long id);
-    Optional<Document> updateDocument(Long id, DocumentMetadata metadata);
-    boolean deleteDocument(Long id);
+    Document createDocument(long ownerId, DocumentMetadata metadata);
+    List<Document> getAllDocuments(long ownerId);
+    Optional<Document> getDocumentById(long ownerId, Long id);
+    Optional<Document> updateDocument(long ownerId, Long id, DocumentMetadata metadata);
+    boolean deleteDocument(long ownerId, Long id);
 }

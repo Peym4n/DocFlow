@@ -1,5 +1,10 @@
 package at.fhtw.docflow.document.persistence;
 
+import at.fhtw.docflow.identity.persistence.UserEntity;
+import jakarta.persistence.Column;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -17,6 +22,16 @@ public class DocumentEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "owner_id", nullable = false, updatable = false)
+    private UserEntity owner;
+
+    @Column(nullable = false)
+    private String title;
+
+    @Column(length = 1024, unique = true, updatable = false)
+    private String originalObjectKey;
+
     private String filename;
     private String contentType;
     private String description;
@@ -32,6 +47,30 @@ public class DocumentEntity {
         this.filename = filename;
         this.contentType = contentType;
         this.description = description;
+    }
+
+    public UserEntity getOwner() {
+        return owner;
+    }
+
+    public void setOwner(UserEntity owner) {
+        this.owner = owner;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public String getOriginalObjectKey() {
+        return originalObjectKey;
+    }
+
+    public void setOriginalObjectKey(String originalObjectKey) {
+        this.originalObjectKey = originalObjectKey;
     }
 
     public Long getId() {

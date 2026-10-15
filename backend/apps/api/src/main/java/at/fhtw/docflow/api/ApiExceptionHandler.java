@@ -1,6 +1,7 @@
 package at.fhtw.docflow.api;
 
 import at.fhtw.docflow.document.application.DocumentNotFoundException;
+import at.fhtw.docflow.identity.application.OwnerRequiredException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -22,6 +23,11 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 @RestControllerAdvice
 public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
+
+    @ExceptionHandler(OwnerRequiredException.class)
+    ProblemDetail ownerRequired(OwnerRequiredException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, exception.getMessage());
+    }
 
     @ExceptionHandler(DocumentNotFoundException.class)
     ProblemDetail notFound(DocumentNotFoundException exception) {

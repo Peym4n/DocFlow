@@ -1,7 +1,13 @@
 package at.fhtw.docflow.document.domain;
 
-public record DocumentMetadata(String filename, String contentType, String description) {
+public record DocumentMetadata(String filename, String contentType, String description, String title) {
+    public DocumentMetadata(String filename, String contentType, String description) {
+        this(filename, contentType, description, filename);
+    }
+
     public DocumentMetadata {
+        title = title == null ? filename : title;
+        requireText(title, "title");
         requireText(filename, "filename");
         requireText(contentType, "contentType");
         if (description != null && description.length() > 255) {

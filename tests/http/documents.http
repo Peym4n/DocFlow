@@ -5,7 +5,7 @@
 POST {{baseUrl}}/api/v1/documents
 Content-Type: application/json
 
-{"filename":"invoice.pdf","contentType":"application/pdf","description":"Example"}
+{"filename":"invoice.pdf","contentType":"application/pdf","description":"Example","title":"Invoice"}
 
 ### List metadata
 GET {{baseUrl}}/api/v1/documents
@@ -17,7 +17,7 @@ GET {{baseUrl}}/api/v1/documents/{{documentId}}
 PUT {{baseUrl}}/api/v1/documents/{{documentId}}/metadata
 Content-Type: application/json
 
-{"filename":"renamed.pdf","contentType":"application/pdf","description":null}
+{"filename":"renamed.pdf","contentType":"application/pdf","description":null,"title":"Updated invoice"}
 
 ### Validation problem
 PUT {{baseUrl}}/api/v1/documents/{{documentId}}/metadata

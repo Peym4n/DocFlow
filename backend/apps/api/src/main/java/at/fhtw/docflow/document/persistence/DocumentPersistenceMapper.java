@@ -10,14 +10,18 @@ import org.mapstruct.MappingTarget;
 public interface DocumentPersistenceMapper {
     // This immutable business operation is not a field populated by the mapper.
     @Mapping(target = "withMetadata", ignore = true)
+    @Mapping(target = "ownerId", source = "owner.id")
     Document toDomain(DocumentEntity entity);
 
     // Identity and creation time belong to persistence, never to an incoming create command.
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "owner", ignore = true)
     DocumentEntity toNewEntity(Document document);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "owner", ignore = true)
+    @Mapping(target = "originalObjectKey", ignore = true)
     void updateMetadata(Document document, @MappingTarget DocumentEntity entity);
 }

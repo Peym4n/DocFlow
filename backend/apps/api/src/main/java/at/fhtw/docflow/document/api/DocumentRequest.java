@@ -17,7 +17,11 @@ public record DocumentRequest(
 
         @Size(max = 255)
         @Schema(nullable = true)
-        String description
+        String description,
+
+        @Size(max = 255)
+        @Schema(description = "Document title; defaults to filename when omitted")
+        String title
 
 ) {
 }

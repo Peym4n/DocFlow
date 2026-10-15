@@ -25,6 +25,8 @@ PowerShell:
 Copy-Item .env.example .env
 ```
 
+For a single-user local demonstration, explicitly set `SPRING_PROFILES_ACTIVE=demo` in `.env`. This seeds one demo owner and assigns all document requests to that owner, without authentication. Do not expose demo mode publicly. Leave the profile unset to require a trusted authenticated principal; document requests without one return `401`. Owner IDs are never accepted from request fields or headers.
+
 Compose reads `.env` automatically. `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT` and `API_PORT` configure the supplied stack. Changing database credentials in `.env` does not change credentials in an already initialized PostgreSQL volume; use the existing credentials or deliberately prepare a separate development database. See [configuration and local execution](docs/sprint-summary.md#configuration-and-local-java-execution).
 
 ## Run with Docker Compose
@@ -84,7 +86,7 @@ GitHub Actions runs Java 25 verification on pull requests and pushes to `dev`/`m
 | PUT | `/api/v1/documents/{id}/metadata` | `200` |
 | DELETE | `/api/v1/documents/{id}` | `204` |
 
-POST/PUT take JSON with required nonblank `filename` and `contentType`, plus optional `description`; each field is limited to 255 characters. PUT replaces editable metadata, preserves ID/creation time, and clears the description when null or omitted. Unknown fields are rejected. Errors use `application/problem+json`; field validation includes an `errors` object. POST does **not** upload a PDF or queue processing.
+POST/PUT take JSON with required nonblank `filename` and `contentType`, plus optional `description` and `title`; each field is limited to 255 characters. A supplied title must be nonblank; null or omitted title defaults to the supplied filename. PUT replaces editable metadata, preserves owner/ID/creation time/original object key, and clears the description when null or omitted. Unknown fields are rejected. Errors use `application/problem+json`; field validation includes an `errors` object. POST does **not** upload a PDF or queue processing.
 
 - [Setup, local Java execution, API examples, health, tests and OpenAPI export](docs/sprint-summary.md)
 - [Architecture and intended sprint scope](docs/architecture.md)

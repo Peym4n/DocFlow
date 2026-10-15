@@ -15,8 +15,9 @@ paths:
       tags:
       - Documents
       summary: Replace editable metadata
-      description: filename and contentType are required. Null description clears
-        it. ID and creation time are preserved; unknown fields are rejected.
+      description: "filename and contentType are required. Null description clears\
+        \ it. Null or omitted title defaults to filename. Owner, ID, creation time\
+        \ and storage key are protected; unknown fields are rejected."
       operationId: updateDocument
       parameters:
       - name: id
@@ -44,6 +45,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DocumentResponse"
+        "401":
+          description: Authenticated owner required outside the explicit local demo
+            profile
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "400":
           description: Invalid request
           content:
@@ -67,9 +75,16 @@ paths:
       tags:
       - Documents
       summary: List metadata records
-      description: Scaffold returns an unpaginated list.
+      description: Returns an unpaginated list belonging to the current owner.
       operationId: getAllDocuments
       responses:
+        "401":
+          description: Authenticated owner required outside the explicit local demo
+            profile
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "400":
           description: Invalid request
           content:
@@ -109,6 +124,13 @@ paths:
               $ref: "#/components/schemas/DocumentRequest"
         required: true
       responses:
+        "401":
+          description: Authenticated owner required outside the explicit local demo
+            profile
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "400":
           description: Invalid request
           content:
@@ -166,6 +188,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DocumentResponse"
+        "401":
+          description: Authenticated owner required outside the explicit local demo
+            profile
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "400":
           description: Invalid request
           content:
@@ -201,6 +230,13 @@ paths:
           description: Metadata deleted
         "404":
           description: Document not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "401":
+          description: Authenticated owner required outside the explicit local demo
+            profile
           content:
             application/problem+json:
               schema:
@@ -245,6 +281,11 @@ components:
           - "null"
           maxLength: 255
           minLength: 0
+        title:
+          type: string
+          description: Document title; defaults to filename when omitted
+          maxLength: 255
+          minLength: 0
       required:
       - contentType
       - filename
@@ -284,6 +325,8 @@ components:
         createdAt:
           type: string
           format: date-time
+        title:
+          type: string
     DocumentRequest:
       type: object
       additionalProperties: false
@@ -301,6 +344,11 @@ components:
           type:
           - string
           - "null"
+          maxLength: 255
+          minLength: 0
+        title:
+          type: string
+          description: Document title; defaults to filename when omitted
           maxLength: 255
           minLength: 0
       required:

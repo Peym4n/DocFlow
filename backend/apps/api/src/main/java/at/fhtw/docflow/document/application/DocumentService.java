@@ -18,34 +18,30 @@ public class DocumentService implements DocumentUseCases {
 
     @Override
     @Transactional
-    public Document createDocument(DocumentMetadata metadata) {
-        return documentStore.save(Document.create(metadata));
+    public Document createDocument(long ownerId, DocumentMetadata metadata) {
+        return documentStore.save(Document.create(ownerId, metadata));
     }
 
     @Override
-    public List<Document> getAllDocuments() {
-        return documentStore.findAll();
+    public List<Document> getAllDocuments(long ownerId) {
+        return documentStore.findAllByOwnerId(ownerId);
     }
 
     @Override
-    public Optional<Document> getDocumentById(Long id) {
-        return documentStore.findById(id);
+    public Optional<Document> getDocumentById(long ownerId, Long id) {
+        return documentStore.findByIdAndOwnerId(id, ownerId);
     }
 
     @Override
     @Transactional
-    public Optional<Document> updateDocument(Long id, DocumentMetadata metadata) {
-        return documentStore.findById(id)
+    public Optional<Document> updateDocument(long ownerId, Long id, DocumentMetadata metadata) {
+        return documentStore.findByIdAndOwnerId(id, ownerId)
                 .map(document -> documentStore.save(document.withMetadata(metadata)));
     }
 
     @Override
     @Transactional
-    public boolean deleteDocument(Long id) {
-        if (!documentStore.existsById(id)) {
-            return false;
-        }
-        documentStore.deleteById(id);
-        return true;
+    public boolean deleteDocument(long ownerId, Long id) {
+        return documentStore.deleteByIdAndOwnerId(id, ownerId);
     }
 }
