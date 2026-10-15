@@ -1,9 +1,11 @@
 package at.fhtw.docflow.document.api;
 
 import at.fhtw.docflow.api.ApiExceptionHandler;
+import at.fhtw.docflow.configuration.UploadProperties;
 import at.fhtw.docflow.document.domain.Document;
 import at.fhtw.docflow.document.domain.DocumentMetadata;
 import at.fhtw.docflow.document.application.DocumentUseCases;
+import at.fhtw.docflow.document.application.DocumentFileUseCases;
 import org.mapstruct.factory.Mappers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,21 +27,24 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class DocumentControllerTest {
 
+    private DocumentFileUseCases files;
     private DocumentUseCases documentService;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         documentService = mock(DocumentUseCases.class);
+        files = mock(DocumentFileUseCases.class);
 
         DocumentController controller =
-                new DocumentController(documentService, Mappers.getMapper(DocumentMapper.class), () -> 7L);
+                new DocumentController(documentService, Mappers.getMapper(DocumentMapper.class), () -> 7L, files);
 
         LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
         validator.afterPropertiesSet();
 
         mockMvc = MockMvcBuilders
-                .standaloneSetup(controller)
+                .standaloneSetup(controller, new DocumentFileController(files, documentService, () -> 7L,
+                        new UploadProperties(10485760, 100)))
                 .setControllerAdvice(new ApiExceptionHandler())
                 .setValidator(validator)
                 .build();
@@ -112,14 +117,9 @@ class DocumentControllerTest {
     }
 
     @Test
-    void createDocumentShouldReturn201() throws Exception {
+    void jsonCreationIsNotSupported() throws Exception {
 
         // Arrange
-        Document document = new Document(1L, "rechnung.pdf", "application/pdf", "Rechnung",
-                LocalDateTime.of(2026, 10, 14, 12, 0), 7L, "Invoice", null);
-
-        when(documentService.createDocument(eq(7L), any(DocumentMetadata.class)))
-                .thenReturn(document);
 
         String json = """
             {
@@ -133,12 +133,9 @@ class DocumentControllerTest {
         mockMvc.perform(post("/api/v1/documents")
                         .contentType("application/json")
                         .content(json))
-                .andExpect(status().isCreated())
-                .andExpect(header().string("Location", "/api/v1/documents/1"))
-                .andExpect(jsonPath("$.filename").value("rechnung.pdf"))
-                .andExpect(jsonPath("$.description").value("Rechnung"));
+                .andExpect(status().isUnsupportedMediaType());
 
-        verify(documentService).createDocument(eq(7L), any(DocumentMetadata.class));
+        verifyNoInteractions(documentService, files);
     }
 
     @Test
@@ -212,14 +209,14 @@ class DocumentControllerTest {
         // Arrange
         Long id = 1L;
 
-        when(documentService.deleteDocument(7L, id))
+        when(files.deleteDocument(7L, id))
                 .thenReturn(true);
 
         // Act & Assert
         mockMvc.perform(delete("/api/v1/documents/{id}", id))
                 .andExpect(status().isNoContent());
 
-        verify(documentService).deleteDocument(7L, id);
+        verify(files).deleteDocument(7L, id);
     }
 
 
@@ -229,7 +226,7 @@ class DocumentControllerTest {
         // Arrange
         Long id = 999L;
 
-        when(documentService.deleteDocument(7L, id))
+        when(files.deleteDocument(7L, id))
                 .thenReturn(false);
 
         // Act & Assert
@@ -239,12 +236,12 @@ class DocumentControllerTest {
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.title").value("Not Found"));
 
-        verify(documentService).deleteDocument(7L, id);
+        verify(files).deleteDocument(7L, id);
     }
 
 
     @Test
-    void createDocumentShouldReturn400WhenFilenameIsBlank() throws Exception {
+    void updateDocumentShouldReturn400WhenFilenameIsBlank() throws Exception {
 
         // Arrange
         String json = """
@@ -256,7 +253,7 @@ class DocumentControllerTest {
             """;
 
         // Act & Assert
-        mockMvc.perform(post("/api/v1/documents")
+        mockMvc.perform(put("/api/v1/documents/1/metadata")
                         .contentType("application/json")
                         .content(json))
                 .andExpect(status().isBadRequest())
@@ -264,8 +261,7 @@ class DocumentControllerTest {
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.errors.filename").exists());
 
-        verify(documentService, never())
-                .createDocument(eq(7L), any(DocumentMetadata.class));
+        verifyNoInteractions(documentService);
     }
 
     @Test
@@ -307,7 +303,7 @@ class DocumentControllerTest {
 
     @Test
     void malformedJsonShouldReturnProblemWithoutParserDetails() throws Exception {
-        mockMvc.perform(post("/api/v1/documents")
+        mockMvc.perform(put("/api/v1/documents/1/metadata")
                         .contentType(MediaType.APPLICATION_JSON).content("{"))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
@@ -325,9 +321,9 @@ class DocumentControllerTest {
 
     @Test
     void databaseConflictShouldNotExposeSql() throws Exception {
-        when(documentService.createDocument(eq(7L), any(DocumentMetadata.class)))
+        when(documentService.updateDocument(eq(7L), eq(1L), any(DocumentMetadata.class)))
                 .thenThrow(new DataIntegrityViolationException("sensitive SQL and file paths"));
-        mockMvc.perform(post("/api/v1/documents")
+        mockMvc.perform(put("/api/v1/documents/1/metadata")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"filename\":\"invoice.pdf\",\"contentType\":\"application/pdf\"}"))
                 .andExpect(status().isConflict())

@@ -2,6 +2,10 @@ package at.fhtw.docflow.api;
 
 import at.fhtw.docflow.document.application.DocumentNotFoundException;
 import at.fhtw.docflow.identity.application.OwnerRequiredException;
+import at.fhtw.docflow.document.application.DocumentContentNotFoundException;
+import at.fhtw.docflow.document.application.InvalidPdfException;
+import at.fhtw.docflow.document.application.StorageUnavailableException;
+import at.fhtw.docflow.document.application.UploadTooLargeException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -29,8 +33,8 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         return ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, exception.getMessage());
     }
 
-    @ExceptionHandler(DocumentNotFoundException.class)
-    ProblemDetail notFound(DocumentNotFoundException exception) {
+    @ExceptionHandler({DocumentNotFoundException.class, DocumentContentNotFoundException.class})
+    ProblemDetail notFound(RuntimeException exception) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
     }
 
@@ -43,6 +47,22 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, "Request validation failed");
         problem.setProperty("errors", errors);
         return handleExceptionInternal(exception, problem, headers, status, request);
+    }
+
+    @ExceptionHandler(InvalidPdfException.class)
+    ProblemDetail invalidPdf(InvalidPdfException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
+    }
+
+    @ExceptionHandler(UploadTooLargeException.class)
+    ProblemDetail uploadTooLarge(UploadTooLargeException exception) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONTENT_TOO_LARGE, exception.getMessage());
+    }
+
+    @ExceptionHandler(StorageUnavailableException.class)
+    ProblemDetail storageUnavailable(StorageUnavailableException exception) {
+        log.error("Document storage operation failed category={}", exception.getClass().getSimpleName());
+        return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

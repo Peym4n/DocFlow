@@ -15,8 +15,8 @@ public class OpenApiConfiguration {
     @Bean
     OpenAPI docFlowOpenApi() {
         return new OpenAPI()
-                .info(new Info().title("DocFlow setup API").version("v1")
-                        .description("Metadata CRUD scaffold. PDF upload, authentication and classification remain to be implemented."))
+                .info(new Info().title("DocFlow API").version("v1")
+                        .description("Owner-scoped PDF upload and metadata management. Errors use application/problem+json: invalid input 400, missing identity 401, missing document 404, conflict 409, excessive upload 413 and unavailable dependencies 503."))
                 .servers(List.of(new Server().url("/")));
     }
     @Bean

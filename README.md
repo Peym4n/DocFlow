@@ -1,37 +1,38 @@
 # DocFlow
 
-Document management coursework project for SWEN3.
+Document management coursework project for SWEN3. See the [sprint summary](docs/sprint-summary.md) for progress and outstanding work, and [architecture](docs/architecture.md) for design decisions.
 
-Implementation progress, verification results and outstanding work are tracked in [the sprint summary](docs/sprint-summary.md).
+## Requirements and configuration
 
-## Prerequisites and configuration
+- Docker with Compose v2 or newer and Linux containers.
+- JDK 25 for local Java execution/tests; Docker builds require no host JDK, Maven or Go installation.
+- Network access for the first dependency/image downloads and MinIO source build.
 
-- Docker with Docker Compose v2 or newer, running Linux containers.
-- JDK 25 for local Java execution/tests. Docker builds need no host JDK or system Maven.
-- The committed Maven Wrapper downloads Maven 3.10.0. First builds/tests need network access for dependencies and images.
-- Default host ports: API `8080`, PostgreSQL `5432`; change them in `.env` if occupied.
-
-From the repository root, copy `.env.example` to the ignored `.env` file and replace `POSTGRES_PASSWORD` with your own local password. Never commit `.env`.
-
-Bash:
+From the repository root, copy `.env.example` to the ignored `.env` and choose your own `POSTGRES_PASSWORD` and `MINIO_ROOT_PASSWORD`:
 
 ```bash
 cp .env.example .env
 ```
 
-PowerShell:
+PowerShell equivalent: `Copy-Item .env.example .env`. If `.env` already exists, add missing settings rather than overwriting it. Never commit the real file.
 
-```powershell
-Copy-Item .env.example .env
-```
+Set `SPRING_PROFILES_ACTIVE=demo` explicitly for single-user local demonstrations. This seeds one owner for all document requests; it is not authentication and must not be exposed publicly. Without this profile, document requests require a trusted authenticated principal and return `401` when it is missing or unknown. Client fields/headers cannot select an owner.
 
-For a single-user local demonstration, explicitly set `SPRING_PROFILES_ACTIVE=demo` in `.env`. This seeds one demo owner and assigns all document requests to that owner, without authentication. Do not expose demo mode publicly. Leave the profile unset to require a trusted authenticated principal; document requests without one return `401`. Owner IDs are never accepted from request fields or headers.
+The example contains the basic settings:
 
-Compose reads `.env` automatically. `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT` and `API_PORT` configure the supplied stack. Changing database credentials in `.env` does not change credentials in an already initialized PostgreSQL volume; use the existing credentials or deliberately prepare a separate development database. See [configuration and local execution](docs/sprint-summary.md#configuration-and-local-java-execution).
+| Settings | Purpose/default |
+| --- | --- |
+| `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | Local database connection |
+| `POSTGRES_PORT`, `API_PORT` | Host ports, default `5432` and `8080` |
+| `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD` | Local storage credentials, used by both MinIO and the API |
+| `MINIO_PORT`, `MINIO_BUCKET` | Localhost storage port `9000`, private bucket `docflow` |
+| `UPLOAD_MAX_BYTES`, `UPLOAD_MAX_PAGES` | PDF limits: 10 MiB and 100 pages |
+
+Optional overrides: `MINIO_ENDPOINT` for a different local S3 endpoint, `MINIO_TIMEOUT_MILLIS` (default `5000`), and `UPLOAD_MAX_REQUEST_BYTES` (default 11 MiB). Keep the request-envelope limit above the PDF limit if increasing file size. PostgreSQL credentials in an existing volume do not change just because `.env` changes.
 
 ## Run with Docker Compose
 
-From the repository root (which contains `docker-compose.yaml`):
+From the repository root:
 
 ```bash
 docker compose config --quiet
@@ -40,64 +41,97 @@ docker compose ps
 docker compose logs --follow backend
 ```
 
-The API image uses `backend/Dockerfile` with the **repository root** as build context. Compose waits for PostgreSQL readiness; the backend health check includes the database.
+Compose uses repository-root build contexts: `backend/Dockerfile` for the API and `infra/minio/Dockerfile` for the pinned MinIO source build. The MinIO image includes upstream source/license material. MinIO is bound to localhost, its browser console is disabled, and its bucket is created on first upload. Compose waits for database/storage readiness.
 
-With default ports:
-
-- Metadata API: `http://localhost:8080/api/v1/documents`
-- Swagger UI: `http://localhost:8080/swagger-ui/index.html`
-- OpenAPI JSON/YAML: `/v3/api-docs` and `/v3/api-docs.yaml`
-- Health: `/actuator/health`, `/actuator/health/readiness`, `/actuator/health/liveness`
-
-Stop the stack without removing its named volume:
+Stop without deleting named volumes:
 
 ```bash
 docker compose down
 ```
 
-**Data-loss warning:** `spring.jpa.hibernate.ddl-auto=create` recreates mapped tables at **every API startup**, including restart, rebuild/redeployment and switching to local Java. Existing document rows are lost even when the PostgreSQL Docker volume survives. Shutdown alone does not drop mapped tables. Do not run two API instances against the same database. Preserve reusable demo inputs separately; this is the agreed coursework lifecycle, not durable archival storage. Removing volumes is a separate destructive action and is not required for ordinary shutdown.
+**Data-loss warning:** `ddl-auto=create` recreates mapped tables at every API startup, including restart/redeployment and switching to local Java. Users and document rows are lost even when the PostgreSQL volume survives. MinIO objects survive and can become orphaned. Keep reusable demo PDFs separately; after stopping activity, review leftover object keys with an S3-compatible client before removing them. Reset a disposable volume only deliberately. Do not run two API instances against the same database. No Flyway is used.
+
+## Run Java locally
+
+Stop the Compose API and start its dependencies from the repository root:
+
+```bash
+docker compose stop backend
+docker compose up --detach --wait db minio
+```
+
+Spring Boot/Maven do not automatically load `.env`. Set matching database/storage variables in the shell or IDE. In Bash, a trusted, shell-compatible local `.env` can be loaded with:
+
+```bash
+set -a
+source .env
+set +a
+export SERVER_PORT="${API_PORT:-8080}"
+cd backend
+./mvnw -B -ntp -pl apps/api spring-boot:run
+```
+
+Only source your own trusted file. In PowerShell, set the same variables through the IDE or `$env:NAME` assignments; enter passwords with `Read-Host -AsSecureString` rather than storing them in command history. Run `./mvnw.cmd -B -ntp -pl apps/api spring-boot:run` from `backend/`.
+
+Local Java uses localhost database/storage ports; Compose supplies private service endpoints. `SERVER_PORT` controls local Java's HTTP port. After a build, the executable JAR can also be started with `java -jar apps/api/target/api-0.0.1-SNAPSHOT.jar` from `backend/`.
 
 ## Build and test
 
-Run from `backend/`. Bash commands:
+From `backend/`:
 
 ```bash
 ./mvnw -B -ntp test
 ./mvnw -B -ntp clean verify
 ```
 
-In PowerShell use `./mvnw.cmd` instead of `./mvnw`.
+Use `./mvnw.cmd` in PowerShell. The committed Wrapper downloads Maven 3.10.0.
 
-- `test`: runs isolated unit/MockMvc/mapping tests; no database or running Compose stack required.
-- `verify`: also runs integration tests, including the context test, against disposable PostgreSQL Testcontainers databases. **Docker is required**, but no developer database credentials are needed.
-- JaCoCo generates HTML/XML/CSV reports and enforces **at least 80% application line coverage** during `verify`. Only the two generated MapStruct implementations are excluded.
-- Reports: `backend/apps/api/target/surefire-reports/`, `failsafe-reports/` and `site/jacoco/index.html`.
-- `package` builds the API JAR and runs isolated tests; it does not run the integration suite or coverage gate. Prefer `verify` for handoff.
+- `test`: isolated unit, controller and mapping tests, without running services.
+- `verify`: also packages the API, runs disposable PostgreSQL/source-built MinIO integration tests, and enforces at least **80% application line coverage** with JaCoCo. Docker is required; developer database/storage credentials are not.
+- `package` runs isolated tests only, not the complete verification gate.
+- Reports are under `backend/apps/api/target/surefire-reports/`, `failsafe-reports/` and `site/jacoco/index.html`.
 
-GitHub Actions runs Java 25 verification on pull requests and pushes to `dev`/`main`, uploads test/coverage artifacts, and checks the Docker image build.
+GitHub Actions runs Java 25 verification for PRs and pushes to `dev`/`main`, uploads reports and checks the API image build. First integration verification also builds MinIO inside Docker.
 
-## API contract and further instructions
+## API usage
+
+Default API origin: `http://localhost:8080`. Swagger UI: `/swagger-ui/index.html`.
 
 | Method | Route | Success |
 | --- | --- | --- |
-| POST | `/api/v1/documents` | `201`, JSON metadata and `Location` |
-| GET | `/api/v1/documents` | `200`, unpaginated JSON array |
-| GET | `/api/v1/documents/{id}` | `200` |
-| PUT | `/api/v1/documents/{id}/metadata` | `200` |
-| DELETE | `/api/v1/documents/{id}` | `204` |
+| POST (multipart) | `/api/v1/documents` | `202`, document ID and processing-status URL |
+| GET | `/api/v1/documents` | `200`, owner-scoped, unpaginated array |
+| GET | `/api/v1/documents/{id}` | `200`, metadata |
+| PUT (JSON) | `/api/v1/documents/{id}/metadata` | `200`, replaced metadata |
+| DELETE | `/api/v1/documents/{id}` | `204`, metadata deletion followed by attempted object cleanup |
+| GET | `/api/v1/documents/{id}/content` | `200`, original PDF attachment |
+| GET | `/api/v1/documents/{id}/processing` | `200`, deferred processing status |
 
-POST/PUT take JSON with required nonblank `filename` and `contentType`, plus optional `description` and `title`; each field is limited to 255 characters. A supplied title must be nonblank; null or omitted title defaults to the supplied filename. PUT replaces editable metadata, preserves owner/ID/creation time/original object key, and clears the description when null or omitted. Unknown fields are rejected. Errors use `application/problem+json`; field validation includes an `errors` object. POST does **not** upload a PDF or queue processing.
+Upload uses ordinary multipart fields: required `file` with `application/pdf`, optional `title` and `description` (maximum 255 characters). Empty, unreadable, encrypted and excessive-page PDFs are rejected. Files use server-generated object keys; extra owner/storage form fields cannot affect those values.
 
-- [Setup, local Java execution, API examples, health, tests and OpenAPI export](docs/sprint-summary.md)
-- [Architecture and intended sprint scope](docs/architecture.md)
-- [Setup and architecture review](docs/setup-architecture-review.md)
-- [Exported API contract](contracts/openapi.yaml)
-- [Runnable HTTP requests](tests/http/documents.http)
+```bash
+curl -i http://localhost:8080/api/v1/documents \
+  -F 'file=@/path/to/example.pdf;type=application/pdf' \
+  -F 'title=Example' \
+  -F 'description=Demo PDF'
+```
 
-Export the running API contract from the repository root in PowerShell:
+Replace the file path, then use the returned ID for metadata/content requests. `Location` and `statusUrl` point to processing status. `DEFERRED` means the PDF was stored but no OCR/AI work was queued. JSON-only POST is not supported.
+
+PUT takes required nonblank `filename`/`contentType`, and optional `title`/`description`, all limited to 255 characters. Null/omitted title defaults to the supplied filename; a supplied title must be nonblank. Null/omitted description clears it. Owner, ID, creation time and original key remain unchanged. Unknown JSON fields are rejected. Editing metadata never replaces the original PDF bytes.
+
+Errors use `application/problem+json`; validation errors include field messages under `errors`. Missing/foreign documents return `404`, oversized uploads `413`, unsupported POST media types `415`, and handled database/storage failures `503`. Cleanup failures are logged for manual follow-up; no cross-service atomicity is claimed.
+
+## Health and API documentation
+
+- `/actuator/health` and `/actuator/health/readiness`: include database and storage reachability.
+- `/actuator/health/liveness`: independent of external dependencies.
+- `/actuator/info`: application description.
+- `/v3/api-docs` and `/v3/api-docs.yaml`: generated OpenAPI; [snapshot](contracts/openapi.yaml).
+- [HTTP examples](tests/http/documents.http): upload, metadata, download and deletion requests.
+
+Export the running contract from the repository root in PowerShell and review its diff:
 
 ```powershell
 ./scripts/export-openapi.ps1 -BaseUrl http://localhost:8080
 ```
-
-Review the generated `contracts/openapi.yaml` diff before committing. No paid cloud service or LLM account is needed for the backend build and test commands above.

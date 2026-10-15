@@ -1,11 +1,32 @@
 @baseUrl = http://localhost:8080
 @documentId = 1
+@pdfPath = /path/to/example.pdf
 
-### Create metadata (setup operation; no PDF bytes are uploaded)
+### Upload a PDF (set pdfPath and enable the local demo profile)
 POST {{baseUrl}}/api/v1/documents
-Content-Type: application/json
+Content-Type: multipart/form-data; boundary=DocFlowBoundary
 
-{"filename":"invoice.pdf","contentType":"application/pdf","description":"Example","title":"Invoice"}
+--DocFlowBoundary
+Content-Disposition: form-data; name="file"; filename="example.pdf"
+Content-Type: application/pdf
+
+< {{pdfPath}}
+--DocFlowBoundary
+Content-Disposition: form-data; name="title"
+
+Example PDF
+--DocFlowBoundary
+Content-Disposition: form-data; name="description"
+
+Local demonstration
+--DocFlowBoundary--
+
+### Download original content (use the upload response ID)
+GET {{baseUrl}}/api/v1/documents/{{documentId}}/content
+Accept: application/pdf
+
+### Processing status (DEFERRED is not queued)
+GET {{baseUrl}}/api/v1/documents/{{documentId}}/processing
 
 ### List metadata
 GET {{baseUrl}}/api/v1/documents

@@ -7,6 +7,7 @@ import java.util.Optional;
 
 public interface DocumentUseCases {
     Document createDocument(long ownerId, DocumentMetadata metadata);
+    Document createStoredDocument(long ownerId, DocumentMetadata metadata, String originalObjectKey);
     List<Document> getAllDocuments(long ownerId);
     Optional<Document> getDocumentById(long ownerId, Long id);
     Optional<Document> updateDocument(long ownerId, Long id, DocumentMetadata metadata);

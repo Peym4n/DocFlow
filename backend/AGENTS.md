@@ -2,6 +2,12 @@
 
 Guidelines for implementing the DocFlow Java backend. The authoritative design is `../docs/architecture.md`; this file turns it into working rules. Keep the student-project scope and do not reintroduce deferred production mechanisms.
 
+## Learning-First Scope
+
+- This is a student coursework project, not a production-ready product. Prioritize learning, the course objectives and code the whole team can understand and explain.
+- Keep implementations and repository setup as simple as possible while meeting the agreed requirements. Prefer straightforward flows, small classes and existing framework features; add abstractions, configuration switches or infrastructure only for a concrete course objective or demonstrated need.
+- Do not add production hardening, operational automation, exhaustive failure matrices or speculative extensibility merely because they would be useful in a commercial system. Preserve basic safety, ownership rules, meaningful validation and the required architecture/tests; document accepted limitations instead of engineering around every edge case.
+
 ## Project Goals
 
 - Implement upload, OCR, indexing, GenAI summary/classification, tagging and full-text search.
@@ -23,6 +29,7 @@ Guidelines for implementing the DocFlow Java backend. The authoritative design i
 - `apps/batch-worker`: long-lived Spring scheduler for XML access-log import, owning the audit schema.
 - `integration-tests/`: focused cross-application tests.
 - Dependencies include Spring MVC, Data JPA/Hibernate, Jakarta validation, Security/JWT, AMQP, PDFBox, MinIO SDK, Elasticsearch client, MapStruct and springdoc. Use the architecture's dependency baseline when adding libraries.
+- MinIO Java SDK 9.0.3 needs the explicit matching `okhttp-jvm:5.3.2` dependency for Maven; its transitive multiplatform `okhttp` artifact alone does not supply JVM classes. Real storage integration tests build `../infra/minio/Dockerfile` from its pinned source; first verification therefore also downloads/compiles Go dependencies inside Docker.
 - No Flyway or mandatory Spring Batch. Use Spring `@Scheduled` for the importer.
 - Share message contracts where needed, never JPA entities or a common business model. Keep adapters inside applications until actual duplication justifies a shared module.
 
@@ -48,6 +55,7 @@ Guidelines for implementing the DocFlow Java backend. The authoritative design i
   - Admin-only `POST/GET /admin/users`, `PUT /admin/users/{id}`, `POST /admin/users/{id}/reset-password`. No public registration.
 - Provide tag management and authenticated retry/reindex operations. No classification-history/feedback endpoints.
 - Use explicit PUT edit DTOs for replacement of editable representations. Required fields must be supplied; nullable fields may be cleared. IDs, ownership, processing state and audit fields are not editable. No generic PATCH/three-state field framework.
+- Create documents through multipart `file`, `title` and `description` fields only; do not retain the temporary JSON-create endpoint or JSON metadata part. Tests may create fixtures through application services. Keep usage in README, progress/results in `docs/sprint-summary.md`, and design decisions in the architecture document.
 - Upload returns `202 Accepted` with document ID/status URL after storage and database commit. Publishing failures remain visible in status; retry processing for the existing document instead of creating a duplicate. Original PDF content is immutable; replacement means a new upload.
 - Use conventional statuses: 200 reads/updates, 201 creation with Location where useful, 202 asynchronous work, 204 deletion, 400 invalid input, 401 unauthenticated, 403 forbidden, 404 missing/not owned, 409 conflict and 502/503 appropriate upstream failures.
 - Validate DTOs with Jakarta validation and mirror documented file/page/field limits. Centralize problem responses with `@RestControllerAdvice`; never expose stack traces, SQL or internal paths.

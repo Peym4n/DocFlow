@@ -18,5 +18,7 @@ public abstract class PostgresIntegrationTest {
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
+        registry.add("docflow.storage.access-key", () -> "test-owner");
+        registry.add("docflow.storage.secret-key", () -> "test-storage-only");
     }
 }

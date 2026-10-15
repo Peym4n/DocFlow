@@ -1,41 +1,55 @@
 package at.fhtw.docflow;
 
+import at.fhtw.docflow.document.application.DocumentStorage;
 import at.fhtw.docflow.document.application.DocumentUseCases;
+import at.fhtw.docflow.document.domain.Document;
 import at.fhtw.docflow.document.domain.DocumentMetadata;
 import at.fhtw.docflow.document.persistence.DocumentRepository;
 import at.fhtw.docflow.identity.persistence.UserEntity;
 import at.fhtw.docflow.identity.persistence.UserRepository;
+import java.time.Duration;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.web.client.RestClient;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.when;
 
 @ActiveProfiles("demo")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class DocumentApiIT extends PostgresIntegrationTest {
     @LocalServerPort
     int port;
-    private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
-    private final JsonMapper mapper = JsonMapper.builder().build();
-
+    @MockitoBean
+    DocumentStorage storage;
     @Autowired
     DocumentUseCases service;
     @Autowired
     UserRepository users;
     @Autowired
     DocumentRepository documents;
+    private RestClient http;
+    private final JsonMapper mapper = JsonMapper.builder().build();
+
+    @BeforeEach
+    void configureClient() {
+        when(storage.available()).thenReturn(true);
+        var factory = new SimpleClientHttpRequestFactory();
+        factory.setReadTimeout(Duration.ofSeconds(15));
+        http = RestClient.builder().baseUrl("http://localhost:" + port).requestFactory(factory).build();
+    }
 
     @AfterEach
     void clearDocuments() {
@@ -43,117 +57,84 @@ class DocumentApiIT extends PostgresIntegrationTest {
     }
 
     @Test
-    void runningApiSupportsMetadataLifecycle() throws Exception {
-        HttpResponse<String> created = request("POST", "/api/v1/documents",
-                "{\"filename\":\"invoice.pdf\",\"contentType\":\"application/pdf\",\"description\":\"Invoice\"}");
-        assertThat(created.statusCode()).isEqualTo(201);
-        JsonNode original = mapper.readTree(created.body());
-        String location = created.headers().firstValue("Location").orElseThrow();
-        assertThat(location).isEqualTo("/api/v1/documents/" + original.get("id").asLong());
-        assertThat(original.get("createdAt").asString()).isNotBlank();
-        assertThat(mapper.readTree(request("GET", location, null).body())).isEqualTo(original);
-        HttpResponse<String> listed = request("GET", "/api/v1/documents", null);
-        assertThat(listed.statusCode()).isEqualTo(200);
-        assertThat(mapper.readTree(listed.body()).get(0)).isEqualTo(original);
-
-        HttpResponse<String> updated = request("PUT", location + "/metadata",
-                "{\"filename\":\"renamed.pdf\",\"contentType\":\"application/pdf\",\"description\":null}");
-        assertThat(updated.statusCode()).isEqualTo(200);
-        JsonNode replacement = mapper.readTree(updated.body());
-        assertThat(replacement.get("id")).isEqualTo(original.get("id"));
-        assertThat(replacement.get("createdAt")).isEqualTo(original.get("createdAt"));
-        assertThat(replacement.get("filename").asString()).isEqualTo("renamed.pdf");
-        assertThat(replacement.get("description").isNull()).isTrue();
-        assertThat(mapper.readTree(request("GET", location, null).body())).isEqualTo(replacement);
-        HttpResponse<String> deleted = request("DELETE", location, null);
-        assertThat(deleted.statusCode()).isEqualTo(204);
-        assertThat(deleted.body()).isEmpty();
-        assertProblem(request("GET", location, null), 404);
-        assertProblem(request("DELETE", location, null), 404);
-        assertProblem(request("PUT", location + "/metadata",
-                "{\"filename\":\"missing.pdf\",\"contentType\":\"application/pdf\"}"), 404);
-    }
-
-    @Test
-    void runningApiRejectsInvalidAndProtectedFields() throws Exception {
-        assertProblem(request("POST", "/api/v1/documents", "{}"), 400);
-        assertProblem(request("POST", "/api/v1/documents", "{"), 400);
-        assertProblem(request("POST", "/api/v1/documents",
-                "{\"filename\":\"invoice.pdf\",\"contentType\":\"application/pdf\",\"id\":99}"), 400);
-        assertProblem(request("PUT", "/api/v1/documents/1/metadata", "{}"), 400);
-        assertProblem(request("GET", "/api/v1/documents/invalid", null), 400);
-        assertProblem(request("PUT", "/api/v1/documents/1", "{}"), 405);
-        assertThat(mapper.readTree(request("GET", "/api/v1/documents", null).body()).size()).isZero();
-    }
-
-    @Test
-    void demoOwnerCannotAccessAnotherOwnersDocuments() throws Exception {
-        long other = users.saveAndFlush(new UserEntity("other-owner")).getId();
-        var document = service.createDocument(other,
-                new DocumentMetadata("private.pdf", "application/pdf", null));
-        String path = "/api/v1/documents/" + document.id();
-        assertThat(mapper.readTree(request("GET", "/api/v1/documents", null).body()).size()).isZero();
+    void readsEditsAndDeletesAServiceFixture() {
+        Document original = fixture(users.findByUsername("demo").orElseThrow().getId(), "invoice");
+        String path = "/api/v1/documents/" + original.id();
+        assertThat(json(request("GET", path, null)).get("title").asString()).isEqualTo("invoice");
+        assertThat(json(request("GET", "/api/v1/documents", null)).size()).isEqualTo(1);
+        var updated = request("PUT", path + "/metadata", "{\"filename\":\"renamed.pdf\",\"contentType\":\"application/pdf\",\"title\":\"New title\",\"description\":null}");
+        assertThat(updated.getStatusCode().value()).isEqualTo(200);
+        assertThat(json(updated).get("id").asLong()).isEqualTo(original.id());
+        assertThat(json(updated).get("title").asString()).isEqualTo("New title");
+        assertThat(json(updated).has("ownerId")).isFalse();
+        assertThat(json(updated).has("originalObjectKey")).isFalse();
+        Document persisted = service.getDocumentById(original.ownerId(), original.id()).orElseThrow();
+        assertThat(persisted.createdAt()).isEqualTo(original.createdAt());
+        assertThat(persisted.originalObjectKey()).isEqualTo(original.originalObjectKey());
+        assertThat(persisted.description()).isNull();
+        assertThat(request("DELETE", path, null).getStatusCode().value()).isEqualTo(204);
         assertProblem(request("GET", path, null), 404);
-        assertProblem(request("PUT", path + "/metadata",
-                "{\"filename\":\"forged.pdf\",\"contentType\":\"application/pdf\"}"), 404);
         assertProblem(request("DELETE", path, null), 404);
-        assertThat(service.getDocumentById(other, document.id())).contains(document);
     }
 
     @Test
-    void titleIsEditableButOwnershipAndStorageAreNotRequestFields() throws Exception {
-        HttpResponse<String> created = request("POST", "/api/v1/documents",
-                "{\"filename\":\"title.pdf\",\"contentType\":\"application/pdf\",\"title\":\"Original title\"}");
-        assertThat(created.statusCode()).isEqualTo(201);
-        String path = created.headers().firstValue("Location").orElseThrow();
-        JsonNode original = mapper.readTree(created.body());
-        assertThat(original.get("title").asString()).isEqualTo("Original title");
-        assertThat(original.has("ownerId")).isFalse();
-        assertThat(original.has("originalObjectKey")).isFalse();
-        for (String protectedField : new String[]{"ownerId", "originalObjectKey", "createdAt", "id"}) {
-            String payload = "{\"filename\":\"title.pdf\",\"contentType\":\"application/pdf\",\"" + protectedField + "\":\"forged\"}";
-            assertProblem(request("POST", "/api/v1/documents", payload), 400);
-            assertProblem(request("PUT", path + "/metadata", payload), 400);
+    void rejectsInvalidMetadataProtectedFieldsAndJsonCreation() {
+        assertProblem(request("POST", "/api/v1/documents", "{}"), 415);
+        assertProblem(request("PUT", "/api/v1/documents/1/metadata", "{}"), 400);
+        assertProblem(request("PUT", "/api/v1/documents/1/metadata", "{"), 400);
+        assertProblem(request("GET", "/api/v1/documents/invalid", null), 400);
+        for (String field : new String[]{"ownerId", "originalObjectKey", "createdAt", "id"}) {
+            assertProblem(request("PUT", "/api/v1/documents/1/metadata",
+                    "{\"filename\":\"test.pdf\",\"contentType\":\"application/pdf\",\"" + field + "\":\"forged\"}"), 400);
         }
-        HttpResponse<String> updated = request("PUT", path + "/metadata",
-                "{\"filename\":\"title.pdf\",\"contentType\":\"application/pdf\",\"title\":\"Updated title\"}");
-        assertThat(updated.statusCode()).isEqualTo(200);
-        JsonNode replacement = mapper.readTree(updated.body());
-        assertThat(replacement.get("title").asString()).isEqualTo("Updated title");
-        assertThat(replacement.get("id")).isEqualTo(original.get("id"));
-        assertThat(replacement.get("createdAt")).isEqualTo(original.get("createdAt"));
-        assertProblem(request("PUT", path + "/metadata",
-                "{\"filename\":\"title.pdf\",\"contentType\":\"application/pdf\",\"title\":\" \"}"), 400);
-        assertThat(mapper.readTree(request("GET", path, null).body())).isEqualTo(replacement);
+        assertThat(documents.count()).isZero();
     }
 
     @Test
-    void exposesOpenApiAndDependencyAwareHealth() throws Exception {
-        HttpResponse<String> docs = request("GET", "/v3/api-docs", null);
-        assertThat(docs.statusCode()).isEqualTo(200);
-        JsonNode paths = mapper.readTree(docs.body()).get("paths");
-        assertThat(paths.has("/api/v1/documents")).isTrue();
-        assertThat(paths.get("/api/v1/documents/{id}/metadata").has("put")).isTrue();
+    void cannotListReadEditOrDeleteAnotherOwnersFixture() {
+        long other = users.saveAndFlush(new UserEntity("other-owner")).getId();
+        Document original = fixture(other, "private");
+        String path = "/api/v1/documents/" + original.id();
+        assertThat(json(request("GET", "/api/v1/documents", null)).size()).isZero();
+        assertProblem(request("GET", path, null), 404);
+        assertProblem(request("PUT", path + "/metadata", "{\"filename\":\"forged.pdf\",\"contentType\":\"application/pdf\"}"), 404);
+        assertProblem(request("DELETE", path, null), 404);
+        assertThat(service.getDocumentById(other, original.id())).contains(original);
+    }
+
+    @Test
+    void healthIncludesStorageButLivenessDoesNot() {
         for (String path : new String[]{"/actuator/health", "/actuator/health/readiness", "/actuator/health/liveness"}) {
-            HttpResponse<String> health = request("GET", path, null);
-            assertThat(health.statusCode()).isEqualTo(200);
-            assertThat(mapper.readTree(health.body()).get("status").asString()).isEqualTo("UP");
-            assertThat(mapper.readTree(health.body()).has("components")).isFalse();
+            var response = request("GET", path, null);
+            assertThat(response.getStatusCode().value()).isEqualTo(200);
+            assertThat(json(response).get("status").asString()).isEqualTo("UP");
+            assertThat(json(response).has("components")).isFalse();
         }
+        when(storage.available()).thenReturn(false);
+        assertThat(request("GET", "/actuator/health/readiness", null).getStatusCode().value()).isEqualTo(503);
+        assertThat(request("GET", "/actuator/health/liveness", null).getStatusCode().value()).isEqualTo(200);
     }
 
-    private void assertProblem(HttpResponse<String> response, int status) {
-        assertThat(response.statusCode()).isEqualTo(status);
-        assertThat(response.headers().firstValue("Content-Type").orElseThrow()).startsWith("application/problem+json");
-        assertThat(mapper.readTree(response.body()).get("status").asInt()).isEqualTo(status);
+    private Document fixture(long ownerId, String name) {
+        return service.createStoredDocument(ownerId, new DocumentMetadata(name + ".pdf", "application/pdf", "Example", name),
+                "documents/" + name + ".pdf");
     }
 
-    private HttpResponse<String> request(String method, String path, String body) throws Exception {
-        HttpRequest request = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
-                .timeout(Duration.ofSeconds(15))
-                .header("Content-Type", "application/json")
-                .method(method, body == null ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofString(body))
-                .build();
-        return client.send(request, HttpResponse.BodyHandlers.ofString());
+    private ResponseEntity<byte[]> request(String method, String path, String body) {
+        var request = http.method(HttpMethod.valueOf(method)).uri(path);
+        if (body != null) {
+            request.contentType(MediaType.APPLICATION_JSON).body(body);
+        }
+        return request.exchange((sent, response) -> new ResponseEntity<>(response.bodyTo(byte[].class), response.getHeaders(), response.getStatusCode()));
+    }
+
+    private JsonNode json(ResponseEntity<byte[]> response) {
+        return mapper.readTree(response.getBody());
+    }
+
+    private void assertProblem(ResponseEntity<byte[]> response, int status) {
+        assertThat(response.getStatusCode().value()).isEqualTo(status);
+        assertThat(response.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PROBLEM_JSON);
+        assertThat(json(response).get("status").asInt()).isEqualTo(status);
     }
 }

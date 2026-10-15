@@ -23,6 +23,12 @@ public class DocumentService implements DocumentUseCases {
     }
 
     @Override
+    @Transactional
+    public Document createStoredDocument(long ownerId, DocumentMetadata metadata, String originalObjectKey) {
+        return documentStore.save(Document.create(ownerId, metadata, originalObjectKey));
+    }
+
+    @Override
     public List<Document> getAllDocuments(long ownerId) {
         return documentStore.findAllByOwnerId(ownerId);
     }
