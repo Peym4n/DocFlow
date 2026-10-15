@@ -9,6 +9,8 @@ SWEN3 / BIF5 student project. Prioritize learning and the agreed course objectiv
 - [x] PDF storage: bounded upload validation, pinned source-built MinIO, original download, deferred processing status, save-failure compensation and post-delete cleanup.
 - [x] Learning-first simplification: multipart-only creation with ordinary `file`, `title` and `description` fields; one owner-scoped lookup per download; concise OpenAPI annotations; focused integration tests; smaller configuration examples.
 
+- [x] Repository-wide simplification: shared learning-first guidance, shorter frontend/design docs, historical review without a duplicate backlog, consolidated ignore rules and HTTP test helpers, and removal of the context-only test and scratch SQL.
+
 ## Public contract changes
 
 - Document creation is a PDF upload returning `202`; the temporary JSON-only creation endpoint and its `201` response are removed.
@@ -19,11 +21,11 @@ SWEN3 / BIF5 student project. Prioritize learning and the agreed course objectiv
 
 ## Verification
 
-Latest local Maven Wrapper `clean verify`: **60 isolated tests and 17 integration tests passed**, with no failures/errors/skips. Generated reports under `backend/apps/api/target/` remain authoritative.
+Latest local Maven Wrapper `clean verify`: **60 isolated tests and 16 integration tests passed**, with no failures/errors/skips. Generated reports under `backend/apps/api/target/` remain authoritative. Repository simplification reverified this suite on 15 October 2026; the integration count decreased by one because the context-only test was removed, with all behavioral cases retained.
 
 - JaCoCo: **287/314 application lines covered (91.4%)**; the unchanged gate requires at least 80%, excluding only generated MapStruct implementations.
 - PostgreSQL and source-built MinIO integration tests use disposable containers, not the developer services.
-- Separate Compose acceptance passed: plain-form upload, byte-for-byte PDF download, metadata edit, deferred status, JSON-create rejection, deletion and readiness.
+- Previous Compose acceptance (before this documentation/test cleanup) passed: plain-form upload, byte-for-byte PDF download, metadata edit, deferred status, JSON-create rejection, deletion and readiness.
 - OpenAPI was regenerated from the running container and checked for plain multipart fields, binary content and the processing `200` response schema.
 
 Unit/controller tests cover validation, identity handling, protected fields, error responses and storage cleanup. Focused integration tests cover real PDF round trips, ownership, invalid/oversized requests, database-save failure and PostgreSQL rollback. Docker pause/unpause and hand-injected transaction-hook failure tests are intentionally deferred; basic commit boundaries and cleanup behavior remain implemented and tested without that machinery.
@@ -50,7 +52,7 @@ Unit/controller tests cover validation, identity handling, protected fields, err
 - [ ] Verify remote Actions execution, team access and required checks/reviews.
 - [ ] Obtain another student's review, verify a clean main checkout and prepare/check the course source ZIP.
 
-The additional classification use case and extra entities remain Sprint 1 requirements; completed setup/storage alone does not finish the milestone. See the [readiness review](setup-architecture-review.md) for original finding numbers.
+The additional classification use case and extra entities remain Sprint 1 requirements; completed setup/storage alone does not finish the milestone. See the [historical setup review](setup-architecture-review.md) for original finding numbers. The integration branch is `dev` locally; remote branch permissions and checks still need verification.
 
 ## Accepted limitations
 

@@ -24,22 +24,16 @@ import org.springframework.core.io.ByteArrayResource;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.RestClient;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.images.builder.ImageFromDockerfile;
 import org.testcontainers.junit.jupiter.Container;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.json.JsonMapper;
 
 import static org.assertj.core.api.Assertions.*;
 
@@ -75,15 +69,11 @@ class DocumentUploadIT extends PostgresIntegrationTest {
     DocumentRepository documents;
     @Autowired
     MinioClient minioClient;
-    private RestClient http;
-    private final JsonMapper mapper = JsonMapper.builder().build();
+    private TestHttpClient http;
 
     @BeforeEach
     void configureClient() {
-        var factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(Duration.ofSeconds(5));
-        factory.setReadTimeout(Duration.ofSeconds(15));
-        http = RestClient.builder().baseUrl("http://localhost:" + port).requestFactory(factory).build();
+        http = new TestHttpClient(port);
     }
 
     @AfterEach
@@ -99,37 +89,37 @@ class DocumentUploadIT extends PostgresIntegrationTest {
     @Test
     void uploadsDownloadsEditsAndDeletesOriginalPdf() throws Exception {
         byte[] pdf = PdfFixtures.pdf(1);
-        var accepted = upload(parts(pdf, "../invoice.pdf", "Invoice"));
+        var accepted = http.upload(parts(pdf, "../invoice.pdf", "Invoice"));
         assertThat(accepted.getStatusCode().value()).isEqualTo(202);
-        long id = json(accepted).get("id").asLong();
+        long id = http.json(accepted).get("id").asLong();
         String path = "/api/v1/documents/" + id;
         assertThat(accepted.getHeaders().getLocation().toString()).isEqualTo(path + "/processing");
-        assertThat(json(accepted).get("statusUrl").asString()).isEqualTo(path + "/processing");
+        assertThat(http.json(accepted).get("statusUrl").asString()).isEqualTo(path + "/processing");
         var original = service.getDocumentById(demoOwner(), id).orElseThrow();
         assertThat(original.filename()).isEqualTo("invoice.pdf");
         assertThat(original.title()).isEqualTo("Invoice");
         assertThat(original.originalObjectKey()).matches("documents/[a-f0-9-]{36}\\.pdf");
-        assertThat(json(request("GET", path + "/processing", null)).get("status").asString()).isEqualTo("DEFERRED");
-        var download = request("GET", path + "/content", null);
+        assertThat(http.json(http.request("GET", path + "/processing", null)).get("status").asString()).isEqualTo("DEFERRED");
+        var download = http.request("GET", path + "/content", null);
         assertThat(download.getStatusCode().value()).isEqualTo(200);
         assertThat(download.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PDF);
         assertThat(download.getHeaders().getFirst(HttpHeaders.CONTENT_DISPOSITION)).startsWith("attachment;");
         assertThat(download.getBody()).isEqualTo(pdf);
-        assertThat(request("PUT", path + "/metadata", "{\"filename\":\"renamed.pdf\",\"contentType\":\"text/plain\",\"title\":\"Renamed\"}")
+        assertThat(http.request("PUT", path + "/metadata", "{\"filename\":\"renamed.pdf\",\"contentType\":\"text/plain\",\"title\":\"Renamed\"}")
                 .getStatusCode().value()).isEqualTo(200);
-        assertThat(request("GET", path + "/content", null).getBody()).isEqualTo(pdf);
+        assertThat(http.request("GET", path + "/content", null).getBody()).isEqualTo(pdf);
         assertThat(service.getDocumentById(demoOwner(), id).orElseThrow().originalObjectKey()).isEqualTo(original.originalObjectKey());
-        assertThat(request("DELETE", path, null).getStatusCode().value()).isEqualTo(204);
+        assertThat(http.request("DELETE", path, null).getStatusCode().value()).isEqualTo(204);
         assertThatThrownBy(() -> storage.get(original.originalObjectKey())).isInstanceOf(DocumentContentNotFoundException.class);
-        assertProblem(request("GET", path + "/content", null), 404);
+        http.assertProblem(http.request("GET", path + "/content", null), 404);
         assertThat(users.existsById(demoOwner())).isTrue();
     }
 
     @Test
     void rejectsInvalidAndOversizedPdfWithoutSavingAnything() throws Exception {
-        assertProblem(upload(parts("not PDF".getBytes(StandardCharsets.UTF_8), "fake.pdf", "Invalid")), 400);
-        assertProblem(upload(parts(new byte[4097], "large.pdf", "Too large")), 413);
-        assertProblem(upload(parts(new byte[9000], "large.pdf", "Too large")), 413);
+        http.assertProblem(http.upload(parts("not PDF".getBytes(StandardCharsets.UTF_8), "fake.pdf", "Invalid")), 400);
+        http.assertProblem(http.upload(parts(new byte[4097], "large.pdf", "Too large")), 413);
+        http.assertProblem(http.upload(parts(new byte[9000], "large.pdf", "Too large")), 413);
         assertThat(documents.count()).isZero();
         assertThat(objectCount()).isZero();
     }
@@ -140,16 +130,16 @@ class DocumentUploadIT extends PostgresIntegrationTest {
         byte[] pdf = PdfFixtures.pdf(1);
         var privateDocument = files.upload(other, new DocumentMetadata("private.pdf", "application/pdf", null), pdf);
         String path = "/api/v1/documents/" + privateDocument.id();
-        assertProblem(request("GET", path + "/content", null), 404);
-        assertProblem(request("GET", path + "/processing", null), 404);
-        assertProblem(request("DELETE", path, null), 404);
+        http.assertProblem(http.request("GET", path + "/content", null), 404);
+        http.assertProblem(http.request("GET", path + "/processing", null), 404);
+        http.assertProblem(http.request("DELETE", path, null), 404);
         assertThat(storage.get(privateDocument.originalObjectKey())).isEqualTo(pdf);
         var form = parts(pdf, "demo.pdf", "Demo");
         form.add("ownerId", Long.toString(other));
         form.add("originalObjectKey", "documents/forged.pdf");
-        var accepted = upload(form);
+        var accepted = http.upload(form);
         assertThat(accepted.getStatusCode().value()).isEqualTo(202);
-        var saved = service.getDocumentById(demoOwner(), json(accepted).get("id").asLong()).orElseThrow();
+        var saved = service.getDocumentById(demoOwner(), http.json(accepted).get("id").asLong()).orElseThrow();
         assertThat(saved.ownerId()).isEqualTo(demoOwner());
         assertThat(saved.originalObjectKey()).isNotEqualTo("documents/forged.pdf");
     }
@@ -167,12 +157,12 @@ class DocumentUploadIT extends PostgresIntegrationTest {
     @Test
     void missingOriginalHasAProblemResponse() {
         var missing = service.createStoredDocument(demoOwner(), new DocumentMetadata("missing.pdf", "application/pdf", null), "documents/missing.pdf");
-        assertProblem(request("GET", "/api/v1/documents/" + missing.id() + "/content", null), 404);
+        http.assertProblem(http.request("GET", "/api/v1/documents/" + missing.id() + "/content", null), 404);
     }
 
     @Test
     void openApiDescribesMultipartCreationAndSuccessfulProcessingResponse() {
-        var paths = json(request("GET", "/v3/api-docs", null)).get("paths");
+        var paths = http.json(http.request("GET", "/v3/api-docs", null)).get("paths");
         var post = paths.get("/api/v1/documents").get("post");
         var content = post.get("requestBody").get("content");
         assertThat(content.has("application/json")).isFalse();
@@ -214,28 +204,5 @@ class DocumentUploadIT extends PostgresIntegrationTest {
         form.add("file", new HttpEntity<>(resource, headers));
         form.add("title", title);
         return form;
-    }
-
-    private ResponseEntity<byte[]> upload(MultiValueMap<String, Object> form) {
-        return http.post().uri("/api/v1/documents").contentType(MediaType.MULTIPART_FORM_DATA).body(form)
-                .exchange((request, response) -> new ResponseEntity<>(response.bodyTo(byte[].class), response.getHeaders(), response.getStatusCode()));
-    }
-
-    private ResponseEntity<byte[]> request(String method, String path, String body) {
-        var request = http.method(HttpMethod.valueOf(method)).uri(path);
-        if (body != null) {
-            request.contentType(MediaType.APPLICATION_JSON).body(body);
-        }
-        return request.exchange((sent, response) -> new ResponseEntity<>(response.bodyTo(byte[].class), response.getHeaders(), response.getStatusCode()));
-    }
-
-    private JsonNode json(ResponseEntity<byte[]> response) {
-        return mapper.readTree(response.getBody());
-    }
-
-    private void assertProblem(ResponseEntity<byte[]> response, int status) {
-        assertThat(response.getStatusCode().value()).isEqualTo(status);
-        assertThat(response.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PROBLEM_JSON);
-        assertThat(json(response).get("status").asInt()).isEqualTo(status);
     }
 }

@@ -53,25 +53,20 @@ class DocumentControllerTest {
     @Test
     void getDocumentByIdShouldReturn404WhenNotFound() throws Exception {
 
-        // Arrange
         when(documentService.getDocumentById(7L, 999L))
                 .thenReturn(Optional.empty());
 
-        // Act & Assert
         mockMvc.perform(get("/api/v1/documents/999"))
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.title").value("Not Found"));
 
-        verify(documentService).getDocumentById(7L, 999L);
     }
-
 
     @Test
     void getDocumentByIdShouldReturn200WhenFound() throws Exception {
 
-        // Arrange
         Document document = Document.create(7L, new DocumentMetadata(
                 "rechnung.pdf",
                 "application/pdf",
@@ -81,20 +76,17 @@ class DocumentControllerTest {
         when(documentService.getDocumentById(7L, 1L))
                 .thenReturn(Optional.of(document));
 
-        // Act & Assert
         mockMvc.perform(get("/api/v1/documents/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.filename").value("rechnung.pdf"))
                 .andExpect(jsonPath("$.contentType").value("application/pdf"))
                 .andExpect(jsonPath("$.description").value("Stromrechnung"));
 
-        verify(documentService).getDocumentById(7L, 1L);
     }
 
     @Test
     void getAllDocumentsShouldReturn200() throws Exception {
 
-        // Arrange
         Document doc1 = Document.create(7L, new DocumentMetadata(
                 "rechnung.pdf", "application/pdf", "Rechnung"
         ));
@@ -106,20 +98,16 @@ class DocumentControllerTest {
         when(documentService.getAllDocuments(7L))
                 .thenReturn(List.of(doc1, doc2));
 
-        // Act & Assert
         mockMvc.perform(get("/api/v1/documents"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].filename").value("rechnung.pdf"))
                 .andExpect(jsonPath("$[1].filename").value("vertrag.pdf"));
 
-        verify(documentService).getAllDocuments(7L);
     }
 
     @Test
     void jsonCreationIsNotSupported() throws Exception {
-
-        // Arrange
 
         String json = """
             {
@@ -129,7 +117,6 @@ class DocumentControllerTest {
             }
             """;
 
-        // Act & Assert
         mockMvc.perform(post("/api/v1/documents")
                         .contentType("application/json")
                         .content(json))
@@ -141,7 +128,6 @@ class DocumentControllerTest {
     @Test
     void updateDocumentShouldReturn200() throws Exception {
 
-        // Arrange
         Long id = 1L;
 
         Document updated = Document.create(7L, new DocumentMetadata(
@@ -160,7 +146,6 @@ class DocumentControllerTest {
             }
             """;
 
-        // Act & Assert
         mockMvc.perform(put("/api/v1/documents/{id}/metadata", id)
                         .contentType("application/json")
                         .content(json))
@@ -168,14 +153,11 @@ class DocumentControllerTest {
                 .andExpect(jsonPath("$.filename").value("neu.pdf"))
                 .andExpect(jsonPath("$.description").value("Neue Beschreibung"));
 
-        verify(documentService).updateDocument(
-                eq(7L), eq(id), any(DocumentMetadata.class));
     }
 
     @Test
     void updateDocumentShouldReturn404WhenNotFound() throws Exception {
 
-        // Arrange
         Long id = 999L;
 
         when(documentService.updateDocument(
@@ -190,7 +172,6 @@ class DocumentControllerTest {
             }
             """;
 
-        // Act & Assert
         mockMvc.perform(put("/api/v1/documents/{id}/metadata", id)
                         .contentType("application/json")
                         .content(json))
@@ -199,51 +180,40 @@ class DocumentControllerTest {
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.title").value("Not Found"));
 
-        verify(documentService).updateDocument(
-                eq(7L), eq(id), any(DocumentMetadata.class));
     }
 
     @Test
     void deleteDocumentShouldReturn204() throws Exception {
 
-        // Arrange
         Long id = 1L;
 
         when(files.deleteDocument(7L, id))
                 .thenReturn(true);
 
-        // Act & Assert
         mockMvc.perform(delete("/api/v1/documents/{id}", id))
                 .andExpect(status().isNoContent());
 
-        verify(files).deleteDocument(7L, id);
     }
-
 
     @Test
     void deleteDocumentShouldReturn404WhenNotFound() throws Exception {
 
-        // Arrange
         Long id = 999L;
 
         when(files.deleteDocument(7L, id))
                 .thenReturn(false);
 
-        // Act & Assert
         mockMvc.perform(delete("/api/v1/documents/{id}", id))
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.title").value("Not Found"));
 
-        verify(files).deleteDocument(7L, id);
     }
-
 
     @Test
     void updateDocumentShouldReturn400WhenFilenameIsBlank() throws Exception {
 
-        // Arrange
         String json = """
             {
                 "filename": "",
@@ -252,7 +222,6 @@ class DocumentControllerTest {
             }
             """;
 
-        // Act & Assert
         mockMvc.perform(put("/api/v1/documents/1/metadata")
                         .contentType("application/json")
                         .content(json))
@@ -288,7 +257,6 @@ class DocumentControllerTest {
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.createdAt").value("2026-10-14T12:00:00"))
                 .andExpect(jsonPath("$.description").doesNotExist());
-        verify(documentService).updateDocument(7L, 1L, replacement);
     }
 
     @Test

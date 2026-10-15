@@ -1,6 +1,6 @@
 # DocFlow architecture
 
-This document records the intended architecture and agreed course requirements, not implementation progress. Keep the design learning-focused rather than production-ready. See the [sprint summary](sprint-summary.md) for progress and [README](../README.md) for verified usage commands. Version research baseline: 9 October 2026.
+This document records the intended architecture and agreed course requirements, not implementation progress. Keep the design learning-focused rather than production-ready. See the [sprint summary](sprint-summary.md) for progress and [README](../README.md) for verified usage commands.
 
 ## 1. Confirmed choices
 
@@ -46,16 +46,7 @@ Docker Compose is the primary development and grading environment. Keep the requ
 
 The rubric assigns 20 points each to functionality, non-functional requirements, architecture, development workflow and code-review knowledge. Containerized deployment alone is 10 points. Document decisions, diagrams, testing, lessons learned and tracked work. Every member should understand the complete system.
 
-### Requirement details and confirmations
-
-- The course architecture diagram includes a mobile client and a Docker Compose monorepo; its omission of Kibana/Logstash does not override the later sprint instructions.
-- Sprint 1 includes the additional use case and extra entities. Implement its domain/API/persistence foundation then; the team confirms live LLM classification comes later, in Sprint 5.
-- Sprint 4 requires MinIO, OCR and ELK in containers. ELK means Elasticsearch, Logstash and Kibana; all three run locally and in scheduled cloud sessions. The indexing worker is explicitly separate even though the course diagram associates indexing with GenAI.
-- Sprint 5 requires a smartphone app generated with AI coding tools, with "smartphone app is available and working" as a must-have. The user confirms that an installable PWA satisfies this requirement; demonstrate it on a real phone.
-- Sprint 6 requires a separate daily scheduled XML importer with configurable schedule/folders/patterns and archiving. The user confirms that demonstrating a configurable daily scheduler is sufficient; unattended daily operation between demonstration sessions is not required.
-- The grading matrix scores the web frontend, core use cases and the additional use case; it has no dedicated mobile/PWA/native score. This does not remove the Sprint 5 must-have.
-
-The course's use-case suggestions endorse LLM classification with a Document/DocumentType many-to-many relationship. The user confirms a three-student team for this project; the introductory material's two-student example does not change that decision.
+The course's additional classification use case requires a many-to-many Document/Category relationship. Sprint 1 implements its domain/API/persistence foundation; live AI arrives in Sprint 5. The team confirmed three students, PWA acceptance, and a configurable scheduler demonstration on 14 October 2026. The PWA must work on a real phone with an AI-assistance record; the batch demonstration must exercise the scheduler and verify import/archive results.
 
 ## 3. Component architecture
 
@@ -211,256 +202,48 @@ Document permissions, pagination, upload limits, concurrency conflicts and error
 
 ## 5. Version baseline
 
-Prefer LTS runtimes. Most frontend libraries and Spring's community releases do not offer an equivalent LTS designation: select maintained stable versions. Preserve Spring Boot's tested dependency set instead of upgrading each transitive dependency independently. The tables retain the research-date intended baseline, not a claim that every planned component is implemented or compatibility-tested. The current API combination is build/test/container verified; its JaCoCo plugin is 0.8.14 (Java 25 compatible), while 0.8.15 below remains a proposed future baseline. Compose uses PostgreSQL 18.6 and disposable integration tests use PostgreSQL 18.3 Alpine. Pin exact build dependencies, lockfiles and container digests as components are introduced.
+Prefer LTS runtimes and compatible stable dependencies. Keep Spring Boot's managed versions rather than pinning every transitive library independently. Build files and container definitions are the source of truth for installed versions.
 
-### Java
-
-| Component | Proposed version | Notes |
-| --- | --- | --- |
-| Eclipse Temurin JDK | **25.0.4.1+1 (Java 25 LTS)** | Latest LTS baseline |
-| Maven + Wrapper | **3.10.0** | Stable; Maven 4 RC excluded |
-| Spring Boot | **4.1.1** | Parent/BOM; 4.2 milestones excluded |
-| Spring Framework / MVC | **7.0.9** | Boot-managed |
-| Spring Data train | **2026.0.1** | Boot-managed JPA repositories |
-| Hibernate ORM / Validator | **7.4.5.Final / 9.1.3.Final** | Persistence / Jakarta validation |
-| Spring Security | **7.1.1** | Boot-managed |
-| Spring AMQP | **4.1.1** | RabbitMQ integration |
-| PostgreSQL JDBC | **42.7.13** | Boot-managed |
-| Jackson BOM / Logback | **3.1.5 / 1.5.38** | JSON / logging; Boot-managed |
-| MapStruct + processor | **1.6.3** | Stable; 1.7 beta excluded |
-| springdoc OpenAPI WebMVC UI | **3.1.1** | Boot 4 generation |
-| Apache PDFBox | **3.0.8** | PDF parsing and rasterization |
-| MinIO Java SDK | **9.0.3** | Verify chosen server/client combination |
-| Elasticsearch Java client | **9.4.5** | Boot-managed; newer 9.x server compatibility, avoid newer-only APIs |
-| Resilience4j core retry/circuit-breaker | **2.4.0** | Programmatic use; do not assume Boot 3 starter compatibility |
-| Gemini adapter | Spring RestClient | Framework-managed; no extra AI SDK needed |
-| Gemini model | **gemini-3.8-flash**, proposed | Stable Flash; configurable, account availability/cost to verify |
-
-Use Boot starters for MVC, JPA, validation, security, AMQP, actuator and testing as appropriate. Use Spring scheduling in the separate batch application; add Spring Batch only if the importer later needs its job-management features. Spring AI is teaching material but not an explicit framework requirement in the supplied brief; direct HTTP keeps the service agent small. Revisit after reading the Spring AI handout.
-
-### Frontend, mobile and tests
-
-| Component | Proposed version |
+| Current component | Version/source |
 | --- | --- |
-| Node.js | **24.21.0 LTS**; Node 26 is not yet LTS on the research date |
-| React / React DOM / corresponding type packages | **19.3.0** |
-| TypeScript | **6.0.3**, compatibility exception |
-| Vite / React plugin | **8.3.4 / 6.1.2** |
-| React Router DOM | **7.18.4** |
-| TanStack React Query | **5.104.1** |
-| ESLint / typescript-eslint | **10.12.0 / 8.71.1** |
-| Hooks / Refresh lint plugins | **7.1.1 / 0.5.7** |
-| Prettier | **3.9.9** |
-| Vitest / matching V8 coverage package | **5.0.3** |
-| React Testing Library / jsdom | **16.3.3 / 30.1.2** |
-| Playwright | **1.64.0** |
-| JUnit Jupiter / Mockito | **6.0.3 / 5.23.0**, Boot-managed |
-| Testcontainers | **2.0.5**, Boot-managed |
-| JaCoCo Maven plugin | **0.8.15** |
-| Maven compiler / Surefire / Failsafe | **3.15.0 / 3.5.6 / 3.5.6** |
-| vite-plugin-pwa | **1.3.0** | Generates manifest + service worker (Workbox); 2.0.0 published within days of the research date, reassess at scaffolding |
+| Java / Spring Boot | Java 25 LTS / Boot 4.1.1 in `backend/pom.xml` |
+| Maven Wrapper | Maven 3.10.0, Wrapper 3.3.4 |
+| MapStruct / springdoc | 1.6.3 / 3.1.1 |
+| PDFBox / MinIO SDK | 3.0.8 / 9.0.3 |
+| OkHttp JVM | Explicit 5.3.2 dependency required by the MinIO SDK in Maven |
+| JaCoCo | 0.8.14; 80% application line-coverage gate |
+| PostgreSQL | Compose: 18.6; disposable tests: 18.3 Alpine |
+| MinIO server | Pinned source release and commit in `infra/minio/Dockerfile` |
+| Java images | Pinned Temurin 25 images in `backend/Dockerfile` |
 
-TypeScript **7.0.2** is the newest stable observed, but typescript-eslint 8.71.1 declares `>=4.8.4 <6.1.0`. Use 6.0.3 until the lint ecosystem supports 7. This is not an LTS claim. Use npm and a committed lockfile with `npm ci`; record the bundled npm version when scaffolding the selected Node build. CSS Modules, fetch and local React state are adequate; React Query handles server state and polling. No additional UI framework or global state library is necessary initially.
+Real storage integration tests build the same MinIO Dockerfile. Keep its source archive and license notices. The pinned source-build approach is an accepted team decision; do not replace it with an assumed `latest` image.
 
-### Infrastructure
+When implementing the frontend, use Node.js 24 LTS, React 19, TypeScript and Vite with a committed npm lockfile. Check package engine/peer compatibility then, particularly TypeScript with typescript-eslint. Select worker, broker, ELK, Nginx and PWA plugin versions when introducing those components; keep Elasticsearch, Logstash and Kibana versions matched. Add no speculative retry/circuit-breaker library. Framework features and bounded retries are sufficient initially.
 
-| Component | Proposed version / policy |
-| --- | --- |
-| PostgreSQL | **18.6** in the local and hosted PostgreSQL containers |
-| RabbitMQ | **4.3.6**; reassess community support before retakes |
-| Elasticsearch / Kibana / Logstash | **9.5.5**, matched server stack; verify container artifacts during build |
-| Nginx | **1.30.5 stable branch** |
-| Tesseract | **5.5.3**, pinned English/German language data |
-| MinIO community server | **RELEASE.2025-10-15T17-29-55Z**, source build accepted by the team |
-| Docker Engine / Compose | **29.9.0 / 5.6.0**, stable tooling baseline |
-| Docker Desktop | Supported workstation release bundling suitable Engine/Compose; no application dependency on a specific Desktop patch |
+## 6. Repository organization and containers
 
-PDFBox replaces Ghostscript for rasterization; invoke Tesseract with argument arrays, not shell-assembled commands. Bound page count, memory, temporary files and process time; begin with one OCR job at a time. No Tess4J dependency is needed in this approach.
+- `backend/`: Maven parent/Wrapper and `apps/api`, organized by feature with API, application/domain, persistence, integration and configuration packages.
+- Add separate `apps/ocr-worker`, `apps/indexing-worker`, `apps/genai-worker`, and `apps/batch-worker` as their sprint features arrive. Share message contracts when needed, never JPA entities or a common business model. Add focused cross-application tests with those features.
+- `frontend/`: React/PWA application. Group by feature, extracting shared API/components only for real reuse. Maven builds Java; npm builds React.
+- `infra/`: current MinIO Dockerfile and later Nginx, RabbitMQ, Elasticsearch, Logstash and Kibana configuration.
+- `contracts/`: exported OpenAPI and later versioned event schemas and XML XSD. `tests/`: HTTP examples and later end-to-end fixtures/scenarios.
+- `docs/`: architecture here, progress/results in the sprint summary, setup/usage in README. Add other documents/scripts only when they have a concrete purpose.
 
-**MinIO exception:** its official community repository is archived and its latest listed release is source-only. Do not assume an available maintained `minio/minio:latest` image. Build the pinned source release, preserve its notices, and keep the course instance private. The team has accepted this source-build approach; pin the build toolchain and resulting image digest during implementation. [Repository](https://github.com/minio/minio), [release/build instructions](https://github.com/minio/minio/releases/tag/RELEASE.2025-10-15T17-29-55Z).
+This describes responsibilities, not mandatory empty folders. Keep course downloads, local settings, secrets, uploaded files, caches and build output outside Git.
 
-### Version evidence
+Use repository-root Docker build contexts when sibling Java modules are needed, multi-stage builds, `.dockerignore`, compatible runtime images and straightforward dependency caching. Keep secrets outside images, run non-root where straightforward, use named volumes, and retain health checks/startup retries. Rebuild the whole small stack. Specialized hardening, read-only filesystem enforcement, provenance/SBOM automation and affected-service detection are deferred.
 
-- [Temurin releases](https://adoptium.net/temurin/releases/), [Node LTS schedule](https://github.com/nodejs/Release), [Spring Boot requirements](https://docs.spring.io/spring-boot/system-requirements.html).
-- Exact managed Java versions: [Spring Boot 4.1.1 BOM](https://repo.maven.apache.org/maven2/org/springframework/boot/spring-boot-dependencies/4.1.1/spring-boot-dependencies-4.1.1.pom). Other Java versions: publisher artifact metadata under [Maven Central](https://repo.maven.apache.org/maven2/), with milestone/RC releases excluded.
-- [MapStruct](https://mapstruct.org/documentation/reference-guide/), [springdoc](https://springdoc.org/), [RabbitMQ](https://www.rabbitmq.com/release-information), [PostgreSQL](https://www.postgresql.org/docs/release/), [Elastic releases](https://www.elastic.co/docs/release-notes), [Elastic client compatibility](https://www.elastic.co/docs/reference/elasticsearch/clients/java).
-- [Nginx changes](https://nginx.org/en/CHANGES-1.30), [Tesseract releases](https://github.com/tesseract-ocr/tesseract/releases), [Gemini models](https://ai.google.dev/gemini-api/docs/models), [Docker Engine](https://github.com/moby/moby/releases), [Compose](https://github.com/docker/compose/releases).
-- npm versions and engine/peer requirements were checked directly at `https://registry.npmjs.org/<package>/latest`, e.g. [React](https://registry.npmjs.org/react/latest), [Vite](https://registry.npmjs.org/vite/latest), [typescript-eslint](https://registry.npmjs.org/typescript-eslint/latest). These endpoints move; the table records the research-date snapshot.
+## 7. Deployment and budget
 
-## 6. Recommended directory hierarchy
+Docker Compose is the primary local/grading environment and must start the required services without paid cloud or AI access. Nginx serves React on localhost port 80 and proxies `/api/v1`; retain host API port 8080 for the Sprint 5 check. Use named volumes for PostgreSQL, MinIO, RabbitMQ and Elasticsearch, and configurable batch folder mounts. From Sprint 4, the default grading stack and full cloud sessions include Elasticsearch, Logstash and Kibana.
 
-```text
-DocFlow/
-  README.md
-  LICENSE
-  .gitignore
-  .env.example
-  docker-compose.yaml              # Current API/PostgreSQL stack; extend for later deliverables
-  docker-compose.dev.yaml          # Optional developer overrides (not currently created)
-  deployment/                      # Platform service configs and start/stop runbook
-    railway/                       # One configuration per deployed service
-  .github/
-    workflows/backend-ci.yml
-    workflows/release.yml
-    dependabot.yml
-  backend/
-    pom.xml                        # Parent/aggregator and central versions
-    Dockerfile                     # Current API image; repository-root build context
-    mvnw
-    mvnw.cmd
-    .mvn/wrapper/
-    message-contracts/             # Queue envelopes/payloads, no JPA entities
-    apps/
-      api/
-        pom.xml
-        src/main/java/at/fhtw/docflow/
-          document/
-            api/                   # Controllers, DTOs, HTTP mapping
-            application/           # Use cases and ports
-            domain/                # Business models and rules
-            persistence/           # JPA entities, repositories, mapping
-          classification/          # Same feature/layer pattern
-          category/
-          tag/
-          identity/
-          processing/              # Current stage status, result handlers and retries
-          integration/             # Search/storage service agents
-          configuration/
-        src/main/resources/
-          application.properties
-        src/test/
-      ocr-worker/
-        pom.xml
-        Dockerfile
-        src/main/
-        src/test/
-      indexing-worker/
-      genai-worker/                # Summary and classification handlers
-      batch-worker/                # Long-lived scheduler and audit-schema JPA mappings
-    integration-tests/
-  frontend/
-    package.json
-    package-lock.json
-    .node-version
-    vite.config.ts
-    tsconfig.json
-    Dockerfile                     # Node build -> Nginx runtime
-    public/
-    src/
-      app/                         # Router, providers, layout
-      features/
-        documents/
-        search/
-        categories/
-        classification/
-        authentication/
-      shared/
-        api/
-        components/
-        styles/
-    tests/
-    public/icons/                  # Install icons; manifest + service worker generated by vite-plugin-pwa
-  infra/
-    nginx/default.conf
-    rabbitmq/definitions.json
-    minio/Dockerfile
-    elasticsearch/
-    logstash/                      # Pipeline and bounded buffering config
-    kibana/                        # Config and exported dashboards
-  contracts/
-    openapi.yaml
-    events/
-    access-log.xsd
-  tests/
-    e2e/
-    fixtures/documents/
-    fixtures/access-logs/
-    http/
-  scripts/                         # ZIP generation, smoke tests, reindexing
-  docs/
-    architecture.md
-    adr/
-    testing.md
-    deployment.md
-    lessons-learned.md
-```
+Cloud hosting supports scheduled testing/demonstrations, not continuous operation. Use a managed Docker platform, no VPS, with a maximum **EUR 10/month for the whole three-student team**, including storage, taxes and AI. Railway remains the accepted candidate, subject to a measured trial and account limits. Verify current pricing, volume/team-access limits and spending controls before provisioning; do not assume the complete stack fits the budget without measurement.
 
-This is the intended tree, not a set of fully created files. The parent/Wrapper, API module, `backend/Dockerfile`, `docker-compose.yaml`, backend CI and OpenAPI snapshot already exist; worker/shared modules and frontend infrastructure are added only with their features. Maven builds Java and npm builds React; a monorepo needs neither Nx/Turborepo nor one package manager for both. Add shared modules only when real reuse exists. Each Java application has the usual Maven source/test tree.
+Deploy the same application images as separate services in one project/region. Keep PostgreSQL, MinIO, RabbitMQ, Elasticsearch and workers private; expose React/Nginx through HTTPS and protect team-only Kibana access. Browser/PWA clients use relative API URLs, never private service addresses. Keep one hosting administrator and collaborate through GitHub without sharing a personal login. A provider-generated domain is sufficient.
 
-Use repository-root Docker build contexts when Java services need sibling modules. For this small project, rebuild the complete stack; affected-service detection is unnecessary. Keep course downloads, secrets, uploaded files, build outputs and IDE files outside Git.
+Measure the complete stack including ELK, start OCR concurrency at one, use synthetic PDFs and retain reusable inputs separately. Storage charges can continue after compute stops. Use provider spending controls and bounded AI calls/tokens/retries; abort a session if projected spending exceeds the cap. Verify Gemini model availability, quotas and data terms when implementing live AI; CI uses deterministic stubs.
 
-### Container build and runtime standards
-
-Use multi-stage application builds, a `.dockerignore`, dependency caching where straightforward, and small compatible runtime images. Keep only the tools OCR needs in its runtime. Pin dependencies and keep runtime secrets outside images. Run as non-root where supported without complicated workarounds, and keep persistent data in named volumes. Health checks, startup retries and ordinary image/build smoke checks are sufficient initially.
-
-Defer read-only filesystem enforcement, provenance/SBOM automation, specialized hardening pipelines and mandatory image-scanning gates. Keep base images reasonably current and do not expose the Docker socket or add unnecessary privileges.
-
-## 7. Managed Docker deployment and budget
-
-### Local/grading environment
-
-Docker Compose is the primary environment for development, integration and grading. Cloud deployment supports booked demonstrations; it is not needed to build or grade the project.
-
-`docker compose build` and `docker compose up` must start the full required stack. Nginx publishes port 80 for `http://localhost/`, serving React and proxying `/api`. Expose the API on host 8080 for the Sprint 5 check; document the discrepancy with the diagram's 8081.
-
-Use named volumes for PostgreSQL, MinIO, RabbitMQ and Elasticsearch; health checks and startup retries; configurable XML input/archive mounts. Developer profiles may save resources, but the final grading instructions must start all required services. From Sprint 4, include Elasticsearch, Logstash and Kibana as separate services in the default local/grading stack and in cloud sessions.
-
-### Platform comparison (9 October 2026)
-
-The team confirmed that cloud availability is needed only for scheduled testing and demonstrations. No VPS is wanted. Prices below are advertised USD prices; tax, conversion and external AI are additional unless explicitly included. None of these offers establishes an always-on, complete-stack deployment below EUR 10.
-
-| Platform | Relevant capabilities and price | Assessment |
-| --- | --- | --- |
-| **Railway Hobby** | Docker services, private networking and persistent volumes. $5 monthly minimum includes $5 usage; RAM $10/GB-month, CPU $20/vCPU-month, volumes $0.15/GB-month, egress $0.05/GB. | **Recommended for short scheduled sessions**, with measured usage and spending controls. $5 is not a flat price for unlimited containers. |
-| **Northflank** | Custom Dockerfiles, services, databases and cron. Free Sandbox includes two services, one database and two cron jobs. Paid 512 MB service: $5.40/month; 1 GB: $12/month. | Good managed alternative, but the free allowance does not cover this stack and paid always-on services exceed the cap. |
-| **Koyeb** | Free instance has 512 MB, cannot run as a worker or attach a persistent volume. Paid 1 GB Eco compute is $5.36/month. | Useful for a small API; not a free home for the required persistent infrastructure and workers. |
-| **Azure Container Apps + student credits** | Managed container platform; eligible students can receive $100 credit valid for 12 months without a credit card. | Possible credit-funded alternative, but eligibility, regional quotas, stateful storage and total cost need a separate validation. Credits are temporary, not a recurring EUR 10 hosting plan. |
-
-Sources: [Railway pricing](https://docs.railway.com/pricing), [Northflank pricing](https://northflank.com/pricing), [Koyeb instance limits/prices](https://www.koyeb.com/docs/reference/instances), [Azure Container Apps](https://learn.microsoft.com/en-us/azure/container-apps/overview), [Azure for Students](https://azure.microsoft.com/en-us/free/students/).
-
-### Recommended Railway layout
-
-Keep all source code in DocFlow. Deploy each application Dockerfile as a separate service in one project/region. Railway maps Compose concepts to individual services; it does **not** execute the Compose file directly. Keep Compose as the portable local/grading definition. [Compose migration guide](https://docs.railway.com/guides/docker-compose).
-
-| Service | Exposure | Persistent data |
-| --- | --- | --- |
-| React/Nginx | Public HTTPS; `/api` proxies to the API | None; static files built into image |
-| Spring Boot API | Private; both browser and installed PWA use the Nginx `/api` proxy | PostgreSQL and MinIO through private endpoints |
-| PostgreSQL | Private | Dedicated volume |
-| RabbitMQ | Private; management UI not public | Dedicated volume for durable queues |
-| MinIO | Private; browser downloads stream through API | Dedicated volume |
-| Elasticsearch | Private, single node | Dedicated volume |
-| OCR, indexing and GenAI | Three private worker services | Temporary work files; durable results in MinIO/database |
-| XML batch | Long-lived application with an in-process scheduler | Dedicated input/archive volume; see section 8 |
-| Logstash | Private ingestion endpoint; separate container in every full session | Bounded memory buffer; diagnostic logs may be lost on shutdown |
-| Kibana | Separate container; authenticated team-only access for demonstrations | Saved objects in Elasticsearch |
-
-The same Nginx image serves the React build locally and online; a second frontend provider is unnecessary. Configure SPA fallback to `index.html`, an API proxy, upload/time-out limits and runtime upstream resolution. Browser code uses relative `/api` URLs and never private hostnames. The installed PWA uses the same public origin and `/api` path, so no separate mobile API endpoint is needed. Bind public web services to `0.0.0.0` and the platform's assigned port; keep credentials in backend environment secrets. A provider-generated domain avoids buying a domain.
-
-Start with a small synthetic document collection and OCR concurrency one. Measure JVM/native memory, Elasticsearch startup and indexing, PDF rasterization, queue recovery and disk persistence in the first hosted spike. These have not yet been tested on Railway. A managed container host does not remove responsibility for database upgrades, backups or application recovery.
-
-Five volumes cover PostgreSQL, RabbitMQ, MinIO, Elasticsearch and the batch folder. Railway currently documents ten volumes per Hobby project and a default 5 GB volume size. Verify account limits before provisioning. Treat container filesystems outside volumes as disposable. Keep reusable synthetic source documents and fixtures off-platform. PostgreSQL volumes do not prevent Hibernate from recreating mapped tables at application startup; restoring rows before that startup would not preserve them. Rebuild demonstration data after schema creation. [Volume limits](https://docs.railway.com/volumes/reference).
-
-Plan for one billing/platform owner on Hobby, with all three students collaborating through GitHub and the controlled CI/CD workflows. Railway reserves workspace collaboration for Pro/Enterprise; do not assume three full workspace seats on Hobby or share a personal login. Verify project-level access separately. If all three need workspace administration, the $20 Pro minimum exceeds this budget. [Workspace access](https://docs.railway.com/projects/workspaces), [plan policy](https://docs.railway.com/pricing/plans).
-
-### Session budget and shutdown
-
-A planning example, **not a benchmark or guaranteed bill**: 30 running hours/month, average aggregate 6 GB RAM and one actively consumed vCPU, using a 730-hour month:
-
-- Memory: `6 * $10 * 30 / 730 = $2.47`.
-- CPU: `1 * $20 * 30 / 730 = $0.82`.
-- 10 GB aggregate stored for the full month: `$1.50`.
-- Total resources before egress: approximately `$4.79`; the $5 Hobby minimum applies. Tax, exchange fees, AI, backup storage and extra usage must still fit inside EUR 10.
-
-Six GB is an illustrative average for the complete stack, not a promise that every component including ELK will fit or stay at that consumption. Measure actual startup/idle/processing usage, then reduce session hours if necessary. At the same average RAM, continuous operation alone would cost $60/month for memory, before other resources. Plan a two-hour trial first; do not buy larger plans merely to satisfy an unverified estimate.
-
-1. Set a monthly resource allowance converted from the EUR 10 total after reserving tax, currency margin and any AI expense. Configure alerts and a compute hard limit; verify which invoice items are included. Do not assume a dollar usage cap equals a euro invoice cap. Disable unused platform AI/agent features.
-2. Start only for a booked session, deploy the tested commit, let schema creation complete, bootstrap demonstration data and reconcile external state before allowing workers to process jobs. Wait for all dependencies and workers to become ready. Count startup and shutdown time as billable.
-3. At session end stop all running deployments, retaining services, configuration and volumes. Verify the platform dashboard shows no running compute. Stopping a deployment is distinct from deleting a service or volume. Stored data continues to incur charges. [Deployment actions](https://docs.railway.com/deployments/reference).
-4. Do not rely on automatic sleep: database connections, queue heartbeats and worker polling may prevent inactivity, and a queued message is not necessarily a wake-up trigger. Explicitly start/stop the complete dependency graph. [Cost controls](https://docs.railway.com/pricing/cost-control).
-5. Use the primary local Compose environment for the demonstration if the spending limit or provider availability prevents a cloud session. A cloud URL will intentionally be unavailable between sessions.
-
-Use separate, bounded application LLM quotas; platform compute caps do not cap Gemini charges. Prefer available free API quota for synthetic demos only after verifying account eligibility and data terms. CI uses deterministic stubs. No paid AI budget or guaranteed free quota is assumed.
+Deploy only through manual workflows after successful CI and stop paid compute after each session. The session owner verifies shutdown. Section 10 describes the deployment/reset procedure; continuous hosting and automated rollback/shutdown machinery are outside scope.
 
 ## 8. Batch and mobile
 
@@ -488,7 +271,7 @@ Include a real-phone acceptance check: install or add to home screen, launch sta
 
 Admins create accounts containing a username, email and role. Existing users log in with **either username or email plus password**. There is no sign-up screen, public registration endpoint, social login or separate paid identity provider.
 
-Use Spring Security 7.1.1 and PostgreSQL-backed users. Confirmed role model: USER handles their own documents and classification reviews; ADMIN additionally manages accounts and taxonomy. Administrator status does not automatically confer access to everyone else's documents. Enforce object ownership on content, search, metadata, category-confirmation and retry endpoints.
+Use Boot-managed Spring Security and PostgreSQL-backed users. Confirmed role model: USER handles their own documents and classification reviews; ADMIN additionally manages accounts and taxonomy. Administrator status does not automatically confer access to everyone else's documents. Enforce object ownership on content, search, metadata, category-confirmation and retry endpoints.
 
 Normalize login identifiers consistently (trim/lowercase for lookup), enforce database uniqueness on normalized username and email, and disallow `@` in usernames so username/email lookup cannot be ambiguous. Never trim or lowercase passwords. Use Spring's DelegatingPasswordEncoder with bcrypt, tune its work factor on target hardware and reject passwords beyond bcrypt's 72-byte input limit rather than truncating them. Never store or log raw passwords. [Spring password storage](https://docs.spring.io/spring-security/reference/features/authentication/password-storage.html).
 
@@ -534,7 +317,7 @@ The current backend workflow implements Java 25 Wrapper `clean verify`, disposab
 
 Use a manually triggered GitHub Actions workflow to deploy a selected passing `main` commit, and a separate manual shutdown workflow after the demonstration. Keep automatic CI on PRs/pushes. Disable independent platform Git-triggered deployments to avoid unexpected paid sessions. Use scoped environment secrets, record the deployed commit and verify health plus one synthetic end-to-end scenario. Build/deploy all applications together; no affected-service detection, session feature flag or automatic rollback machinery is needed.
 
-The session owner sets a shutdown reminder, runs the stop workflow and checks that paid compute has stopped. Keep the provider spending limits and LLM quotas described above. This is a deliberate manual operational responsibility; no automatic time-based shutdown guarantee is claimed.
+The session owner sets a shutdown reminder, runs the stop workflow and checks that paid compute has stopped. Keep the provider spending controls and bounded AI usage described in section 7. This is a deliberate manual operational responsibility; no automatic time-based shutdown guarantee is claimed.
 
 Because `ddl-auto=create` resets tables, stop the old applications/workers before starting a fresh demo session. Let the API and long-lived batch application initialize their own tables once, reset stale demo messages/indexes/files as needed, bootstrap sample data, then start processing. Keep one schema-owning instance per set of tables. If deployment fails, manually redeploy a known-good commit and prepare fresh demonstration data; data-preserving rollback is outside scope.
 
@@ -578,33 +361,6 @@ Course materials worth consulting during implementation. Store any downloads out
 | [Integration tests](https://moodle.technikum-wien.at/mod/resource/view.php?id=2435467), [batch processing](https://moodle.technikum-wien.at/mod/resource/view.php?id=2435474) | Final testing and XML import requirements |
 | Java examples: [JPA](https://moodle.technikum-wien.at/mod/url/view.php?id=2435296), [mapping](https://moodle.technikum-wien.at/mod/url/view.php?id=2435311), [GitHub Actions](https://moodle.technikum-wien.at/mod/url/view.php?id=2435428) | Optional; public destination URLs are sufficient |
 
-## 13. Accepted decisions and remaining validation
+## 13. Remaining implementation validation
 
-No further architecture choice is required from the team now. The defaults have been accepted, with PWA replacing the earlier Capacitor proposal.
-
-| Topic | Decision |
-| --- | --- |
-| Backend/frontend | Java 25 LTS / Spring Boot, React in the same repository |
-| Ownership/accounts | Owner-only document access; admins maintain users and taxonomy; username/email/password, no registration |
-| Classification | Seven initial labels, multi-label and mandatory human confirmation; live LLM work in Sprint 5 |
-| AI provider | Gemini default; verify account/model availability, data terms and usage quota before live integration |
-| Hosting | Compose primary; Railway demo sessions with manual deploy/stop workflows, no VPS or continuous online execution, EUR 10 team maximum |
-| Mobile | Installable React PWA; confirmed sufficient by the user |
-| Storage | Pinned MinIO source build |
-| Database schema | Hibernate `ddl-auto=create`; recreate mapped tables at startup, no Flyway; disposable demonstration data |
-| MVP reliability | Direct publishing, current processing status and manual retries; no outbox or distributed deletion workflow |
-| Classification storage | Current suggestions and confirmed assignments; historical runs and feedback records deferred |
-| ELK | Elasticsearch, Logstash and Kibana as containers both locally and in cloud sessions |
-| Batch | Long-lived application with Spring scheduling; no restart per import; demonstrating a configurable daily scheduler is sufficient |
-
-### Confirmed course interpretations
-
-The user confirmed the following on 14 October 2026. These questions are resolved; implementation and demonstration checks remain.
-
-| Topic | Confirmed requirement |
-| --- | --- |
-| Team size | Three students. |
-| Smartphone deliverable | The installable React PWA satisfies the requirement. Demonstrate its functionality on a real phone and retain the AI-assistance record. |
-| Daily importer | Demonstrating a configurable daily scheduler is sufficient. Exercise a scheduled trigger and verify import/archive results; continuous execution between sessions is not required. |
-
-Remaining implementation checks: measure the complete hosted stack including ELK, verify account limits and shutdown controls, pin container digests/lockfiles, test version compatibility, validate the PWA on a real phone, and exercise the scheduled importer. These checks verify the implementation; no further course-acceptance clarification is pending for team size, PWA delivery or daily scheduling.
+Measure the complete hosted stack including ELK, verify account/budget limits and shutdown controls, pin images/lockfiles as components are introduced, validate package compatibility, test the PWA on a real phone, and exercise the scheduled importer. These are implementation checks; team size, PWA acceptance and scheduler demonstration are settled decisions.
