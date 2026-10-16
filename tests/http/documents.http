@@ -1,53 +1,29 @@
 @baseUrl = http://localhost:8080
 @documentId = 1
-@pdfPath = /path/to/example.pdf
 
-### Upload a PDF (set pdfPath and enable the local demo profile)
-POST {{baseUrl}}/api/v1/documents
-Content-Type: multipart/form-data; boundary=DocFlowBoundary
-
---DocFlowBoundary
-Content-Disposition: form-data; name="file"; filename="example.pdf"
-Content-Type: application/pdf
-
-< {{pdfPath}}
---DocFlowBoundary
-Content-Disposition: form-data; name="title"
-
-Example PDF
---DocFlowBoundary
-Content-Disposition: form-data; name="description"
-
-Local demonstration
---DocFlowBoundary--
-
-### Download original content (use the upload response ID)
-GET {{baseUrl}}/api/v1/documents/{{documentId}}/content
-Accept: application/pdf
-
-### Processing status (DEFERRED is not queued)
-GET {{baseUrl}}/api/v1/documents/{{documentId}}/processing
-
-### List metadata
-GET {{baseUrl}}/api/v1/documents
-
-### Get metadata (replace documentId with the returned ID)
-GET {{baseUrl}}/api/v1/documents/{{documentId}}
-
-### Replace editable metadata; null clears description
-PUT {{baseUrl}}/api/v1/documents/{{documentId}}/metadata
+### Create metadata (setup operation; no PDF bytes are uploaded)
+POST {{baseUrl}}/api/documents
 Content-Type: application/json
 
-{"filename":"renamed.pdf","contentType":"application/pdf","description":null,"title":"Updated invoice"}
+{"filename":"invoice.pdf","contentType":"application/pdf","description":"Example"}
+
+### List metadata
+GET {{baseUrl}}/api/documents
+
+### Get metadata (replace documentId with the returned ID)
+GET {{baseUrl}}/api/documents/{{documentId}}
+
+### Replace editable metadata; null clears description
+PUT {{baseUrl}}/api/documents/{{documentId}}
+Content-Type: application/json
+
+{"filename":"renamed.pdf","contentType":"application/pdf","description":null}
 
 ### Validation problem
-PUT {{baseUrl}}/api/v1/documents/{{documentId}}/metadata
+PUT {{baseUrl}}/api/documents/{{documentId}}
 Content-Type: application/json
 
 {"filename":"","contentType":"application/pdf"}
 
 ### Delete metadata
-DELETE {{baseUrl}}/api/v1/documents/{{documentId}}
-
-### Generated OpenAPI
-GET {{baseUrl}}/v3/api-docs
+DELETE {{baseUrl}}/api/documents/{{documentId}}
