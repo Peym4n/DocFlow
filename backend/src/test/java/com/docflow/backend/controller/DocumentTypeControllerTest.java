@@ -57,10 +57,10 @@ class DocumentTypeControllerTest {
                 """;
 
         // Act & Assert
-        mockMvc.perform(post("/document-types")
+        mockMvc.perform(post("/api/document-types")
                         .contentType("application/json")
                         .content(json))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("Invoice"))
                 .andExpect(jsonPath("$.description").value("Invoice document"));
@@ -87,7 +87,7 @@ class DocumentTypeControllerTest {
                 .thenReturn(List.of(type1, type2));
 
         // Act & Assert
-        mockMvc.perform(get("/document-types"))
+        mockMvc.perform(get("/api/document-types"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].name").value("Invoice"))
