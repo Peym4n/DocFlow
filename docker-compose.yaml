@@ -17,26 +17,6 @@ services:
       timeout: 5s
       retries: 10
 
-  minio:
-    build:
-      context: .
-      dockerfile: infra/minio/Dockerfile
-    image: docflow-minio:source-9e49d5e
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-docflow-storage}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env or the environment}
-      MINIO_BROWSER: "off"
-    ports:
-      - "127.0.0.1:${MINIO_PORT:-9000}:9000"
-    volumes:
-      - minio_data:/data
-    healthcheck:
-      test: ["CMD", "curl", "--fail", "--silent", "--max-time", "4", "http://localhost:9000/minio/health/ready"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-
   backend:
     build:
       context: .
@@ -45,25 +25,14 @@ services:
       - "${API_PORT:-8080}:8080"
     environment:
       SERVER_PORT: "8080"
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-}
-      MINIO_ENDPOINT: http://minio:9000
-      MINIO_BUCKET: ${MINIO_BUCKET:-docflow}
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-docflow-storage}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env or the environment}
-      MINIO_TIMEOUT_MILLIS: ${MINIO_TIMEOUT_MILLIS:-5000}
-      UPLOAD_MAX_BYTES: ${UPLOAD_MAX_BYTES:-10485760}
-      UPLOAD_MAX_PAGES: ${UPLOAD_MAX_PAGES:-100}
-      UPLOAD_MAX_REQUEST_BYTES: ${UPLOAD_MAX_REQUEST_BYTES:-11534336}
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-docflow}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-docflow}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env or the environment}
     depends_on:
       db:
         condition: service_healthy
-      minio:
-        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "--fail", "--silent", "--max-time", "4", "http://localhost:8080/actuator/health/readiness"]
+      test: ["CMD", "curl", "--fail", "--silent", "--max-time", "4", "http://localhost:8080/api/health"]
       interval: 10s
       timeout: 5s
       retries: 6
@@ -71,4 +40,3 @@ services:
 
 volumes:
   postgres18_data:
-  minio_data:

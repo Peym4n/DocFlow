@@ -1,22 +1,22 @@
 openapi: 3.1.0
 info:
-  title: DocFlow API
-  description: "Owner-scoped PDF upload and metadata management. Errors use application/problem+json:\
-    \ invalid input 400, missing identity 401, missing document 404, conflict 409,\
-    \ excessive upload 413 and unavailable dependencies 503."
+  title: DocFlow setup API
+  description: "Metadata CRUD scaffold. PDF upload, authentication and classification\
+    \ remain to be implemented."
   version: v1
 servers:
 - url: /
 tags:
 - name: Documents
-  description: Owner-scoped document metadata and PDF storage
+  description: Setup metadata operations; file upload is pending
 paths:
   /api/v1/documents/{id}/metadata:
     put:
       tags:
       - Documents
       summary: Replace editable metadata
-      description: "Owner, ID, creation time and original storage key are preserved."
+      description: filename and contentType are required. Null description clears
+        it. ID and creation time are preserved; unknown fields are rejected.
       operationId: updateDocument
       parameters:
       - name: id
@@ -32,6 +32,12 @@ paths:
               $ref: "#/components/schemas/DocumentMetadataRequest"
         required: true
       responses:
+        "404":
+          description: Document not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "200":
           description: Updated metadata
           content:
@@ -39,13 +45,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/DocumentResponse"
         "400":
-          description: Invalid metadata
+          description: Invalid request
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-        "404":
-          description: Document not found
+        "409":
+          description: Stored data conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "503":
+          description: Database unavailable
           content:
             application/problem+json:
               schema:
@@ -54,12 +66,30 @@ paths:
     get:
       tags:
       - Documents
-      summary: List document metadata
-      description: Unpaginated list belonging to the current owner.
+      summary: List metadata records
+      description: Scaffold returns an unpaginated list.
       operationId: getAllDocuments
       responses:
+        "400":
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Stored data conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "503":
+          description: Database unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "200":
-          description: OK
+          description: Metadata records
           content:
             application/json:
               schema:
@@ -69,21 +99,39 @@ paths:
     post:
       tags:
       - Documents
-      summary: Upload a PDF
-      description: "Multipart fields: file, optional title and description. Processing\
-        \ is deferred, not queued."
-      operationId: upload
+      summary: Create a metadata record
+      description: "Setup-only JSON operation: does not upload a PDF or start processing."
+      operationId: createDocument
       requestBody:
         content:
-          multipart/form-data:
+          application/json:
             schema:
               $ref: "#/components/schemas/DocumentRequest"
+        required: true
       responses:
-        "202":
-          description: PDF stored; processing deferred
+        "400":
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Stored data conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "503":
+          description: Database unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "201":
+          description: Metadata created
           headers:
             Location:
-              description: Processing status resource
+              description: Created metadata resource
               style: simple
               schema:
                 type: string
@@ -91,19 +139,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DocumentUploadResponse"
-        "400":
-          description: Invalid PDF or metadata
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "413":
-          description: Upload exceeds configured limits
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: "#/components/schemas/DocumentResponse"
   /api/v1/documents/{id}:
     get:
       tags:
@@ -118,14 +154,32 @@ paths:
           type: integer
           format: int64
       responses:
+        "404":
+          description: Document not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
         "200":
           description: Document metadata
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/DocumentResponse"
-        "404":
-          description: Document not found
+        "400":
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "409":
+          description: Stored data conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ProblemDetail"
+        "503":
+          description: Database unavailable
           content:
             application/problem+json:
               schema:
@@ -133,8 +187,7 @@ paths:
     delete:
       tags:
       - Documents
-      summary: Delete a document
-      description: "Commits metadata deletion, then attempts object cleanup."
+      summary: Delete a metadata record
       operationId: deleteDocument
       parameters:
       - name: id
@@ -145,63 +198,27 @@ paths:
           format: int64
       responses:
         "204":
-          description: Document deleted
+          description: Metadata deleted
         "404":
           description: Document not found
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-  /api/v1/documents/{id}/processing:
-    get:
-      tags:
-      - Documents
-      summary: Get processing status
-      description: PDF processing is deferred until the worker stages are implemented.
-      operationId: processing
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: integer
-          format: int64
-      responses:
-        "200":
-          description: Processing status
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/DocumentProcessingResponse"
-        "404":
-          description: Document not found
+        "400":
+          description: Invalid request
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/ProblemDetail"
-  /api/v1/documents/{id}/content:
-    get:
-      tags:
-      - Documents
-      summary: Download the original PDF
-      operationId: content
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: integer
-          format: int64
-      responses:
-        "200":
-          description: Original PDF attachment
+        "409":
+          description: Stored data conflict
           content:
-            application/pdf:
+            application/problem+json:
               schema:
-                type: string
-                format: binary
-        "404":
-          description: Document or content not found
+                $ref: "#/components/schemas/ProblemDetail"
+        "503":
+          description: Database unavailable
           content:
             application/problem+json:
               schema:
@@ -226,11 +243,6 @@ components:
           type:
           - string
           - "null"
-          maxLength: 255
-          minLength: 0
-        title:
-          type: string
-          description: Document title; defaults to filename when omitted
           maxLength: 255
           minLength: 0
       required:
@@ -272,41 +284,25 @@ components:
         createdAt:
           type: string
           format: date-time
-        title:
-          type: string
     DocumentRequest:
       type: object
+      additionalProperties: false
+      description: Setup-only metadata creation
       properties:
-        file:
+        filename:
           type: string
-          format: binary
-        title:
+          maxLength: 255
+          minLength: 0
+        contentType:
           type: string
           maxLength: 255
           minLength: 0
         description:
-          type: string
+          type:
+          - string
+          - "null"
           maxLength: 255
           minLength: 0
       required:
-      - file
-    DocumentUploadResponse:
-      type: object
-      properties:
-        id:
-          type: integer
-          format: int64
-        status:
-          type: string
-        statusUrl:
-          type: string
-    DocumentProcessingResponse:
-      type: object
-      properties:
-        documentId:
-          type: integer
-          format: int64
-        status:
-          type: string
-        detail:
-          type: string
+      - contentType
+      - filename
