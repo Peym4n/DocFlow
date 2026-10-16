@@ -15,3 +15,4 @@
 **/coverage/
 *.log
 uploads/
+/backend/spring-boot.log
