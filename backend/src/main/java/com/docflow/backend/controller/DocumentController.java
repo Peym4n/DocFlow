@@ -70,4 +70,12 @@ public class DocumentController {
 
         return ResponseEntity.notFound().build();
     }
+
+    @PostMapping("/{documentId}/types/{typeId}")
+    public void addDocumentType(
+            @PathVariable Long documentId,
+            @PathVariable Long typeId) {
+
+        documentService.addDocumentType(documentId, typeId);
+    }
 }

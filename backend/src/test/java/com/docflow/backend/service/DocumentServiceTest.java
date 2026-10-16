@@ -1,7 +1,9 @@
 package com.docflow.backend.service;
 
 import com.docflow.backend.entity.Document;
+import com.docflow.backend.entity.DocumentType;
 import com.docflow.backend.repository.DocumentRepository;
+import com.docflow.backend.repository.DocumentTypeRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -10,6 +12,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import javax.print.Doc;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -21,6 +24,9 @@ class DocumentServiceTest {
 
     @Mock
     private DocumentRepository documentRepository;
+
+    @Mock
+    private DocumentTypeRepository documentTypeRepository;
 
     @InjectMocks
     private DocumentService documentService;
@@ -204,4 +210,95 @@ class DocumentServiceTest {
         verify(documentRepository).existsById(id);
         verify(documentRepository, never()).deleteById(anyLong());
     }
+
+
+    @Test
+    void addDocumentTypeShouldAssignTypeToDocument() {
+
+        // Arrange
+        Long documentId = 1L;
+        Long typeId = 2L;
+
+        Document document = new Document(
+                "rechnung.pdf",
+                "application/pdf",
+                "Stromrechnung"
+        );
+
+        DocumentType documentType = new DocumentType(
+                "Invoice",
+                "Invoice document"
+        );
+
+        when(documentRepository.findById(documentId))
+                .thenReturn(Optional.of(document));
+
+        when(documentTypeRepository.findById(typeId))
+                .thenReturn(Optional.of(documentType));
+
+        // Act
+        documentService.addDocumentType(documentId, typeId);
+
+        // Assert
+        assertTrue(document.getDocumentTypes().contains(documentType));
+
+        verify(documentRepository).save(document);
+    }
+
+
+    @Test
+    void addDocumentTypeShouldThrowWhenDocumentNotFound() {
+
+        // Arrange
+        Long documentId = 999L;
+        Long typeId = 2L;
+
+        when(documentRepository.findById(documentId))
+                .thenReturn(Optional.empty());
+
+        // Act & Assert
+        assertThrows(
+                NoSuchElementException.class,
+                () -> documentService.addDocumentType(documentId, typeId)
+        );
+
+        verify(documentRepository, never())
+                .save(any(Document.class));
+    }
+
+
+
+    @Test
+    void addDocumentTypeShouldThrowWhenTypeNotFound() {
+
+        // Arrange
+        Long documentId = 1L;
+        Long typeId = 999L;
+
+        Document document = new Document(
+                "rechnung.pdf",
+                "application/pdf",
+                "Stromrechnung"
+        );
+
+        when(documentRepository.findById(documentId))
+                .thenReturn(Optional.of(document));
+
+        when(documentTypeRepository.findById(typeId))
+                .thenReturn(Optional.empty());
+
+        // Act & Assert
+        assertThrows(
+                NoSuchElementException.class,
+                () -> documentService.addDocumentType(documentId, typeId)
+        );
+
+        assertTrue(document.getDocumentTypes().isEmpty());
+
+        verify(documentRepository, never())
+                .save(any(Document.class));
+    }
+
+
+
 }

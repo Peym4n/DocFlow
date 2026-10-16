@@ -5,10 +5,14 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import org.hibernate.annotations.CreationTimestamp;
+import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
+@Table(name = "documents")
 public class Document {
 
     @Id
@@ -57,6 +61,21 @@ public class Document {
         this.contentType = contentType;
         this.description = description;
     }
+
+
+    @ManyToMany
+    @JoinTable(
+            name = "document_document_types",
+            joinColumns = @JoinColumn(name = "document_id"),
+            inverseJoinColumns = @JoinColumn(name = "document_type_id")
+    )
+    private Set<DocumentType> documentTypes = new HashSet<>();
+
+    public Set<DocumentType> getDocumentTypes() {
+        return documentTypes;
+    }
+
+
 
 
 

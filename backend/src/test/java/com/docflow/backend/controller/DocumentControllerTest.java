@@ -246,4 +246,26 @@ class DocumentControllerTest {
         verify(documentService, never())
                 .createDocument(any(Document.class));
     }
+
+
+
+    @Test
+    void addDocumentTypeShouldReturn200() throws Exception {
+
+        // Arrange
+        Long documentId = 1L;
+        Long typeId = 2L;
+
+        // Act & Assert
+        mockMvc.perform(post(
+                        "/api/documents/{documentId}/types/{typeId}",
+                        documentId,
+                        typeId
+                ))
+                .andExpect(status().isOk());
+
+        verify(documentService)
+                .addDocumentType(documentId, typeId);
+    }
+
 }

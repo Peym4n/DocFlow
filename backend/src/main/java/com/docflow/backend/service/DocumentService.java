@@ -1,10 +1,10 @@
 package com.docflow.backend.service;
 
 import com.docflow.backend.entity.Document;
+import com.docflow.backend.entity.DocumentType;
 import com.docflow.backend.repository.DocumentRepository;
+import com.docflow.backend.repository.DocumentTypeRepository;
 import org.springframework.stereotype.Service;
-
-import javax.print.Doc;
 import java.util.List;
 import java.util.Optional;
 
@@ -12,9 +12,11 @@ import java.util.Optional;
 public class DocumentService {
 
     private final DocumentRepository documentRepository;
+    private final DocumentTypeRepository documentTypeRepository;
 
-    public DocumentService(DocumentRepository documentRepository) {
+    public DocumentService(DocumentRepository documentRepository, DocumentTypeRepository documentTypeRepository) {
         this.documentRepository = documentRepository;
+        this.documentTypeRepository = documentTypeRepository;
     }
 
     public Document createDocument(Document document) {
@@ -48,6 +50,22 @@ public class DocumentService {
 
         documentRepository.deleteById(id);
         return true;
+    }
+
+
+    public void addDocumentType(Long documentId, Long typeId) {
+
+        Document document = documentRepository
+                .findById(documentId)
+                .orElseThrow();
+
+        DocumentType documentType = documentTypeRepository
+                .findById(typeId)
+                .orElseThrow();
+
+        document.getDocumentTypes().add(documentType);
+
+        documentRepository.save(document);
     }
 }
 

@@ -3,7 +3,9 @@ package com.docflow.backend.mapper;
 import com.docflow.backend.dto.DocumentRequest;
 import com.docflow.backend.dto.DocumentResponse;
 import com.docflow.backend.entity.Document;
+import org.springframework.stereotype.Component;
 
+@Component
 public class DocumentMapper {
 
     public static Document toEntity(DocumentRequest request) {
