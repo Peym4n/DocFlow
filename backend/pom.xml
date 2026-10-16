@@ -54,6 +54,13 @@
 			<scope>runtime</scope>
 		</dependency>
 
+		<!-- Isolated database for the application context test -->
+		<dependency>
+			<groupId>com.h2database</groupId>
+			<artifactId>h2</artifactId>
+			<scope>test</scope>
+		</dependency>
+
 		<!-- Library for JUnit and Mockito -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

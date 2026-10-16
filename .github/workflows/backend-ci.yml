@@ -19,18 +19,15 @@ jobs:
           java-version: '25'
           cache: maven
           cache-dependency-path: backend/**/pom.xml
-      - name: Verify unit tests, PostgreSQL integration tests, and coverage
+      - name: Verify backend tests
         working-directory: backend
         run: bash mvnw -B -ntp clean verify
-      - name: Publish test and coverage reports
+      - name: Publish test reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: backend-test-and-coverage-reports
+          name: backend-test-reports
           if-no-files-found: warn
-          path: |
-            backend/apps/api/target/surefire-reports/
-            backend/apps/api/target/failsafe-reports/
-            backend/apps/api/target/site/jacoco/
+          path: backend/target/surefire-reports/
       - name: Verify API Docker image build
         run: docker build --file backend/Dockerfile --tag docflow-api:ci .
