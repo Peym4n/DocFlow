@@ -1,0 +1,18 @@
+# Local settings and secrets
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+.env
+.env.*
+!.env.example
+
+# Generated output and runtime data
+**/target/
+**/node_modules/
+**/dist/
+**/coverage/
+*.log
+uploads/
+/backend/spring-boot.log

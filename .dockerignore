@@ -1,0 +1,12 @@
+.git
+.idea
+.vscode
+**/*.iml
+**/*.log
+**/.env
+**/.env.*
+**/target
+**/node_modules
+**/dist
+**/coverage
+uploads
